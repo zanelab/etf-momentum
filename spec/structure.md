@@ -4,7 +4,7 @@
 全栈（后端 + 前端 Web）— 2026-06-26 初始化时确认
 
 ## 后端实现状态（2026-06-26 更新）
-FastAPI 脚手架 + SQLite 数据模型 + akshare 数据同步已就位（change: backend-fastapi-scaffold、sqlite-data-model、akshare-data-sync，已归档）。
+FastAPI 脚手架 + SQLite 数据模型 + akshare 数据同步 + 12-1 动量因子已就位（change: backend-fastapi-scaffold、sqlite-data-model、akshare-data-sync、momentum-factor，已归档）。
 
 ```
 backend/
@@ -29,12 +29,14 @@ backend/
 │   │   ├── daily_prices.py     # sync_daily_prices
 │   │   ├── upsert.py           # upsert_etf / upsert_daily_price
 │   │   └── sync.py             # CLI 入口 (python -m app.data.sync)
+│   ├── factors/                # 因子计算原语（纯函数）
+│   │   └── momentum.py         # 12-1 动量：compute_momentum_score / compute_momentum_scores / rank_scores
 │   └── api/
 │       ├── health.py           # GET /health
 │       └── v1/
 │           ├── etfs.py         # GET /api/v1/etfs/count
 │           └── router.py
-├── tests/                      # 41 个 pytest 用例
+├── tests/                      # 68 个 pytest 用例（41 原有 + 27 momentum）
 │   ├── conftest.py
 │   ├── test_health.py
 │   ├── test_etf.py
@@ -48,7 +50,8 @@ backend/
 │   ├── test_upsert.py
 │   ├── test_etf_master_sync.py
 │   ├── test_daily_prices_sync.py
-│   └── test_sync_cli.py
+│   ├── test_sync_cli.py
+│   └── test_momentum.py
 ├── alembic/                    # 迁移目录
 │   ├── env.py
 │   └── versions/8c872b9f6bda_initial_schema.py
