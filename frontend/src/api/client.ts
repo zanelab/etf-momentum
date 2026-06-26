@@ -2,11 +2,13 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly detail: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -18,15 +20,24 @@ function buildUrl(path: string): string {
   return `${BASE_URL}${normalizedPath}`;
 }
 
-async function parseError(response: Response): Promise<string> {
+async function parseError(
+  response: Response,
+): Promise<{ message: string; detail: unknown }> {
   try {
     const body = (await response.json()) as { detail?: unknown; message?: unknown };
-    if (typeof body.detail === "string") return body.detail;
-    if (typeof body.message === "string") return body.message;
+    if (typeof body.detail === "string") {
+      return { message: body.detail, detail: body.detail };
+    }
+    if (typeof body.message === "string") {
+      return { message: body.message, detail: body.message };
+    }
+    if (body.detail !== undefined) {
+      return { message: JSON.stringify(body.detail), detail: body.detail };
+    }
   } catch {
     // fall through
   }
-  return `${response.status} ${response.statusText}`;
+  return { message: `${response.status} ${response.statusText}`, detail: undefined };
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -35,7 +46,8 @@ export async function apiGet<T>(path: string): Promise<T> {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new ApiError(await parseError(response), response.status);
+    const { message, detail } = await parseError(response);
+    throw new ApiError(message, response.status, detail);
   }
   return (await response.json()) as T;
 }
@@ -50,7 +62,8 @@ export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T>
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new ApiError(await parseError(response), response.status);
+    const { message, detail } = await parseError(response);
+    throw new ApiError(message, response.status, detail);
   }
   return (await response.json()) as T;
 }
