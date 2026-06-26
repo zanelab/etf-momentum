@@ -2,16 +2,16 @@
 
 ## 1. 分支与依赖
 
-- [ ] 1.1 从 `main` 切到新分支 `feature/frontend-etf-pool-management`
+- [x] 1.1 从 `main` 切到新分支 `feature/frontend-etf-pool-management`
 
 ## 2. 后端：数据模型 + REST
 
-- [ ] 2.1 Alembic 新迁移：`etf_pools` 表（id, name UNIQUE, description, created_at, updated_at）+ `etf_pool_members` 表（pool_id FK, etf_code FK → etfs.code, position INT, PK (pool_id, etf_code)）
-- [ ] 2.2 新增 SQLAlchemy ORM 模型 `EtfPool` / `EtfPoolMember` + Pydantic schema `EtfPoolCreate` / `EtfPoolUpdate` / `EtfPoolRead` / `EtfPoolSummary`
-- [ ] 2.3 新增 service `app/services/pool_service.py`：CRUD + name 唯一校验（409）+ etf_code 必须存在于 etfs 表（422）+ 事务原子性
-- [ ] 2.4 新增 router `app/api/v1/pools.py`：5 端点 GET 列表 / POST / GET 详情 / PUT / DELETE，挂到 `/api/v1`
-- [ ] 2.5 新增后端测试 `backend/tests/test_pools_api.py`：覆盖 5 端点 + 409 重名 + 422 未知 code + 404 删除 + 空列表
-- [ ] 2.6 跑 `cd backend && uv run pytest tests/test_pools_api.py -v`，确认全过
+- [x] 2.1 Alembic 新迁移：`etf_pools` 表（id, name UNIQUE, description, created_at, updated_at）+ `etf_pool_members` 表（pool_id FK, etf_code FK → etfs.code, position INT, PK (pool_id, etf_code)）
+- [x] 2.2 新增 SQLAlchemy ORM 模型 `EtfPool` / `EtfPoolMember` + Pydantic schema `EtfPoolCreate` / `EtfPoolUpdate` / `EtfPoolRead` / `EtfPoolSummary`
+- [x] 2.3 新增 service `app/services/pool_service.py`：CRUD + name 唯一校验（409）+ etf_code 必须存在于 etfs 表（422）+ 事务原子性
+- [x] 2.4 新增 router `app/api/v1/pools.py`：5 端点 GET 列表 / POST / GET 详情 / PUT / DELETE，挂到 `/api/v1`
+- [x] 2.5 新增后端测试 `backend/tests/test_pools_api.py`：覆盖 5 端点 + 409 重名 + 422 未知 code + 404 删除 + 空列表
+- [x] 2.6 跑 `cd backend && uv run pytest tests/test_pools_api.py -v`，确认全过
 
 ## 3. 前端：API 客户端 + 状态管理
 
