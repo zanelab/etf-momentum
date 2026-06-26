@@ -6,10 +6,12 @@ from fastapi import FastAPI
 
 from app.api.health import router as health_router
 from app.api.v1.router import api_v1_router
+from app.core.config import DATABASE_URL
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    print(f"[etf-momentum] DATABASE_URL={DATABASE_URL}")
     yield
 
 

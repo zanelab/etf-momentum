@@ -35,3 +35,8 @@ vite.config.js
 # Environment
 .env
 .env.local
+
+# Local SQLite database
+*.db
+*.sqlite
+*.sqlite3
