@@ -4,7 +4,7 @@
 
 ### 阶段 1：基础设施
 - [x] 后端 FastAPI 脚手架 *(2026-06-26 完成，change: backend-fastapi-scaffold)*
-- [ ] 前端 Vite + React 脚手架
+- [x] 前端 Vite + React 脚手架 *(2026-06-26 完成，change: frontend-vite-react-scaffold)*
 - [ ] SQLite 数据模型（ETF, DailyPrice, BacktestRun, SignalSnapshot）
 - [ ] akshare / baostock 数据同步脚本
 - [ ] Docker compose 本地启动

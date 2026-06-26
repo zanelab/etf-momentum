@@ -21,3 +21,14 @@
   - TDD 脚本 `speccoding-tdd.sh` 在 macOS 上存在两个限制：stat -c 返回 0（GNU vs BSD），导致 mtime 检查失效；内部多余 shift 导致传 N 个文件实际只检查 N-1 个
   - 当前无远程仓库（git remote 为空），未执行 git push；后续如需推送可配置 origin 后再走 merge 阶段
 
+## change: frontend-vite-react-scaffold
+- 日期：2026-06-26
+- 分支：feature/frontend-vite-react-scaffold
+- 阶段：proposal → spec → executing → archive（全部完成）
+- 实现：Vite 5 + React 18 + TypeScript（strict）+ React Router v6 + Zustand + Tailwind + shadcn/ui Button
+- 测试：vitest 9/9 通过（cn 4 + health-store 5）
+- 验证：`pnpm build` 产出 194KB JS + 10KB CSS；dev server 启动后 `/` 与 `/health` 均返回 200；与后端 /health 联通
+- 备注：
+  - `pnpm` 默认不批准 postinstall 脚本（esbuild），需在 package.json 加 `pnpm.onlyBuiltDependencies: ["esbuild"]`
+  - `tsc -b` 在 composite 模式下会为 `vite.config.ts` 生成 `.d.ts` 与 `.js`，需加入 `.gitignore`
+

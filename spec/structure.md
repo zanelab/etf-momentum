@@ -25,6 +25,38 @@ backend/
 └── README.md
 ```
 
+## 前端实现状态（2026-06-26）
+Vite + React + TypeScript 脚手架已就位（change: frontend-vite-react-scaffold，已归档）。
+
+```
+frontend/
+├── public/
+├── src/
+│   ├── __tests__/              # Vitest 测试
+│   │   ├── cn.test.ts
+│   │   ├── health-store.test.ts
+│   │   └── setup.ts
+│   ├── api/client.ts           # fetch 封装 + ApiError
+│   ├── components/ui/button.tsx # shadcn Button
+│   ├── layouts/Layout.tsx      # 左侧导航 + 顶部标题 + Outlet
+│   ├── lib/utils.ts            # cn() 工具
+│   ├── pages/HealthPage.tsx    # /health 页面
+│   ├── stores/health-store.ts  # Zustand 健康检查状态
+│   ├── App.tsx                 # 路由配置
+│   ├── main.tsx                # React 入口
+│   ├── index.css               # Tailwind + shadcn CSS 变量
+│   └── vite-env.d.ts
+├── index.html
+├── vite.config.ts              # Vite + Vitest
+├── tsconfig.json               # TS strict
+├── tsconfig.node.json
+├── tailwind.config.js
+├── postcss.config.js
+├── package.json
+├── pnpm-lock.yaml
+└── README.md
+```
+
 ## 目录布局
 
 ```
@@ -41,6 +73,6 @@ etf-momentum/
 │   └── changes/
 │       └── archive/          # 已归档变更
 ├── backend/                  # 后端代码（FastAPI，已脚手架）
-├── frontend/                 # 前端代码（待初始化）
+├── frontend/                 # 前端代码（Vite + React，已脚手架）
 └── AGENTS.md                 # 开发规则
 ```
