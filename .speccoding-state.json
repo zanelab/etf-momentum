@@ -1,7 +1,7 @@
 {
   "version": 1,
   "active_change": "realtime-signals",
-  "current_phase": "archive",
+  "current_phase": "merge",
   "branch": "feature/realtime-signals",
   "parent_branch": "main",
   "proposal_confirmed": "true",
@@ -11,7 +11,7 @@
   "plan_total": "46",
   "plan_done": 0,
   "spec_synced": "true",
-  "code_pushed": false,
+  "code_pushed": "true",
   "created_at": "2026-06-26T09:02:44Z",
-  "updated_at": "2026-06-26T09:12:35Z"
+  "updated_at": "2026-06-26T09:13:04Z"
 }
