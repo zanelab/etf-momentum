@@ -113,5 +113,38 @@
   - speccoding-tdd.sh `verify` 命令有 bug：dispatcher 已 consume `verify`、函数内又 `shift` 导致第一个文件被吞；本次手动验证（测试文件存在 + mtime ≥ impl + pytest 通过）替代
   - 本 change 严格遵循「纯函数不读不写 DB」，持久化由后续「实时信号计算与排名」change 负责
 
+## change: backtest-engine
+- 日期：2026-06-26
+- 分支：feature/backtest-engine
+- 阶段：proposal → brainstorming → spec → executing → archive（全部完成）
+- 实现：
+  - `app/backtest/__init__.py` re-export 引擎 + 持久化
+  - `app/backtest/engine.py`：
+    - `RebalanceFrequency(Enum)`：MONTHLY / QUARTERLY
+    - `BacktestParams(frozen=True)`：etf_pool / start / end / initial_cash / lookback / skip / top_n / rebalance_freq
+    - `RebalanceEvent(frozen=True)`：date / scores / selected / weights
+    - `BacktestResult`：nav_series / rebalance_log / metrics
+    - `_validate_params`：参数合法性
+    - `_build_calendar`：所有 ETF 的日期并集并排序
+    - `_find_rebalance_dates`：按月/季取最后一个交易日
+    - `_build_close_lookup`：{date: {code: close}} 索引
+    - `_slice_closes_for_momentum`：取 lookback+skip+1 个 close
+    - `_compute_metrics`：total / annualized / max_drawdown / sharpe_ratio
+    - `run_backtest`：主循环（退市 ETF 卖出 → mark-to-market → 调仓）
+    - `_decimal_pow`：annualized 用 float 中转算 pow
+  - `app/backtest/persistence.py`：
+    - `save_backtest_run(session, params, result)`：写 BacktestRun 行；metrics 包含 params 子字典（lookback/skip/top_n/initial_cash/final_nav）便于审计
+- 测试：pytest 30 个新用例（24 engine + 6 persistence），总计 98/98 通过
+- 验证：
+  - pytest RED → GREEN 周期已确认（先写 test_backtest_engine.py 全部 FAIL，再写 engine.py 后全部 PASS）
+  - 手工 smoke：3 只 ETF 6 个月，130 个 NAV 点，6 次调仓，最终收益 ≈ 15.92%
+  - acceptance criteria 全部满足：等权 / 月末调仓 / 退市卖出 / 业绩指标 / 持久化字段
+- README：`backend/README.md` 新增「回测引擎」章节（BacktestParams 表 / API 示例 / 业绩指标公式 / 设计决策表）
+- 备注：
+  - **Decimal 权重精度处理**：1/n 对非整数 n 是无理小数，三个 1/3 求和得 0.9999...。最终方案：先 quantize 到 10 位小数 + 末位补差法让 `sum(weights) == 1` 严格成立
+  - 退市 ETF 处理的实现细节：每日 mark-to-market 前先扫持仓，若某 ETF 当日无 close → 在该日按最后 close 卖出转 cash；NAV 仍连续
+  - 测试 fixture `make_linear_series` 用 `(1+growth)^i` 复利增长，避免加减法累积误差；方便手算预期
+  - annualized_return 用 `_decimal_pow` 经 float 中转（Decimal 没有 ln/exp 直接支持），中间精度损失可接受（仅用于单点统计）
+
 
 
