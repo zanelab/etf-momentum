@@ -16,7 +16,7 @@
 - [x] 实时信号计算与排名（BUY/HOLD/WATCH 三态 + CLI）*(2026-06-26 完成，change: realtime-signals)*
 
 ### 阶段 3：API + 前端
-- [ ] 后端 REST API（`/api/etfs`, `/api/signals`, `/api/backtest`）
+- [x] 后端 REST API（`/api/etfs`, `/api/signals`, `/api/backtest`）*(2026-06-26 完成，change: rest-api)*
 - [ ] 前端 Dashboard：动量排名 + 调仓建议
 - [ ] 前端 Backtest UI：参数选择 + 业绩图表
 - [ ] 前端 ETF 池管理

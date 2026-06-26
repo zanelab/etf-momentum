@@ -200,5 +200,56 @@
   - **CLI 命名**：最初用 `signal_cli.py` 但 `app.data.sync` 命名约定是文件名即模块名；最终重命名为 `signal.py`，调用变为 `python -m app.data.signal`
   - **`SELL` 不入库**：MVP 由前端对比「今日 vs 昨日」BUY 集合差集得 SELL；action 字段仅 3 态（BUY/HOLD/WATCH）
 
+## change: rest-api
+- 日期：2026-06-26
+- 分支：feature/rest-api
+- 阶段：proposal → brainstorming → spec → executing（全部完成）
+- 实现：
+  - `app/api/v1/schemas.py` 新建：Pydantic 模型 13 个
+    - 实体：`ETFPydantic` / `ETFListPydantic` / `DailyPricePydantic` / `SignalRowPydantic` / `SignalSnapshotPydantic`
+    - Backtest：`BacktestRequestPydantic` / `BacktestRunPydantic` / `BacktestListPydantic` / `NavPointPydantic` / `NavSeriesPydantic`
+    - Sync：`SyncPricesRequestPydantic` / `SyncResponsePydantic`
+    - 通用：`ListResponsePydantic[T]` 泛型
+    - `field_serializer` 把 Decimal 序列化为 string（金融保精度）
+  - `app/api/v1/etfs.py` 扩展：4 个端点
+    - `GET /etfs?limit=50&offset=0&category=...`：列表分页 + 过滤
+    - `GET /etfs/{code}`：详情（404 on miss）
+    - `GET /etfs/{code}/prices?start=...&end=...&limit=500`：日线历史（升序）
+    - `GET /etfs/count`：保留冒烟端点
+  - `app/api/v1/signals.py` 新建：2 个端点
+    - `GET /signals?date=YYYY-MM-DD`：指定日期 snapshot；不传 date → DB MAX(date)
+    - `GET /signals/latest`：显式 latest
+    - rows 按 `rank IS NULL, rank ASC, etf_code ASC` 排序
+  - `app/api/v1/backtest.py` 新建：4 个端点
+    - `POST /backtest`：Pydantic 校验 → 422；从 DB 读历史 → 422 on miss；调 `run_backtest` + `save_backtest_run` → 返回 BacktestRun JSON
+    - `GET /backtest?limit=20&offset=0`：按 `created_at DESC` 分页
+    - `GET /backtest/{id}`：详情（404 on miss）
+    - `GET /backtest/{id}/nav`：NAV 序列（404 on miss）
+    - `_load_price_history`：加载 [start - lookback*1.5 - skip, end] 区间
+    - 复用 `_clamp_limit` / `_clamp_offset`（来自 etfs.py）
+  - `app/api/v1/sync.py` 新建：2 个端点
+    - `POST /sync/etfs`：调 `sync_etf_master`（返回 `{fetched, upserted}`）
+    - `POST /sync/prices`：调 `sync_daily_prices`（返回 `{fetched, succeeded, failed, rows_written}`）
+    - `_build_client` 默认 `AkshareHttpClient`，测试用 monkeypatch 替换
+  - `app/api/v1/router.py`：聚合 4 个 router（`/api/v1` 前缀）
+  - `app/main.py`：加 `CORSMiddleware`，`allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]`
+  - `app/models/backtest_run.py`：加 `nav_series: JSON` 字段
+  - `app/backtest/persistence.py`：`save_backtest_run` 持久化 `nav_series` 为 `[{date, nav}, ...]`
+  - `alembic/versions/b1c2d3e4f5a6_backtest_run_nav_series.py`：加列迁移
+- 测试：pytest 54 个新用例（15 schema + 11 etfs + 7 signals + 12 backtest + 6 sync + 3 CORS），总计 200/200 通过
+- 验证：
+  - TDD RED → GREEN 周期：5 个 test_api_*.py 先写全部 ImportError / FAIL，再实现路由后 54/54 PASS
+  - 现有 146 测试全部通过，无回归
+  - 迁移双向验证：`alembic upgrade head` + `downgrade -1` + `upgrade head`
+  - 公开 API smoke：uvicorn 启动后 `curl /api/v1/etfs/count` → 200 + `{"count":0}`；`curl /api/v1/etfs?limit=5` → 200 + 空分页；`curl /api/v1/signals/latest` → 200 + `{"date":null,"rows":[]}`；`curl /api/v1/backtest/999/nav` → 404；`curl -X POST /api/v1/sync/etfs` → 200 + `{"fetched":1522,"upserted":1522}`（实际拉全市场 ETF）
+  - 端点数量：12 个新端点（etfs×4 + signals×2 + backtest×4 + sync×2）+ 1 个 health = 13 paths
+  - `/docs` 与 `/openapi.json` 可访问
+- README：`backend/README.md` 新增「REST API」章节（端点表 / 4 个 curl 示例 / 错误格式 / 关键约定 / 模块结构 / 设计决策表）
+- 备注：
+  - **`_clamp_limit` / `_clamp_offset` 跨 router 复用**：放在 etfs.py 中导出；backtest router 复用，list 默认 limit 改为 20
+  - **`BacktestRequestPydantic` 单独 in endpoint 签名**：用 `req: BacktestRequestPydantic` 形式让 FastAPI 自动 422；改成 `body: dict` + 内部 `model_validate` 时 ValidationError 不被自动转 422
+  - **POST /backtest 返回 422 的两种情况**：(1) Pydantic 自动（pool 空、字段类型错）；(2) 业务手动（`start > end`、价格历史缺失）——FastAPI 都能识别为 422
+  - **`nav_series` 列的必要性**：原 spec 没明确要求；但 GET /backtest/{id}/nav 没有它就要重跑回测，违背设计；选择加 JSON 列简单直接
+
 
 
