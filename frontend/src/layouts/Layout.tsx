@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/dashboard", label: "动量看板" },
+  { to: "/backtest", label: "回测" },
   { to: "/health", label: "健康检查" },
 ];
 
