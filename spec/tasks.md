@@ -3,7 +3,7 @@
 ## v1.0 — MVP（首个版本）
 
 ### 阶段 1：基础设施
-- [ ] 后端 FastAPI 脚手架
+- [x] 后端 FastAPI 脚手架 *(2026-06-26 完成，change: backend-fastapi-scaffold)*
 - [ ] 前端 Vite + React 脚手架
 - [ ] SQLite 数据模型（ETF, DailyPrice, BacktestRun, SignalSnapshot）
 - [ ] akshare / baostock 数据同步脚本
