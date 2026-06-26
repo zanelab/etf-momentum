@@ -4,6 +4,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { to: "/dashboard", label: "动量看板" },
   { to: "/health", label: "健康检查" },
 ];
 
