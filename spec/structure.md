@@ -4,7 +4,7 @@
 全栈（后端 + 前端 Web）— 2026-06-26 初始化时确认
 
 ## 后端实现状态（2026-06-26 更新）
-FastAPI 脚手架 + SQLite 数据模型已就位（change: backend-fastapi-scaffold、sqlite-data-model，已归档）。
+FastAPI 脚手架 + SQLite 数据模型 + akshare 数据同步已就位（change: backend-fastapi-scaffold、sqlite-data-model、akshare-data-sync，已归档）。
 
 ```
 backend/
@@ -106,7 +106,17 @@ etf-momentum/
 │   ├── specs/                # 长期规格
 │   └── changes/
 │       └── archive/          # 已归档变更
-├── backend/                  # 后端代码（FastAPI + SQLAlchemy + Alembic）
+├── backend/                  # 后端代码（FastAPI + SQLAlchemy + Alembic + akshare）
+│   ├── Dockerfile
+│   └── .dockerignore
 ├── frontend/                 # 前端代码（Vite + React + TS）
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   └── .npmrc
+├── scripts/
+│   └── verify-docker.sh      # Docker 冒烟脚本
+├── docker-compose.yml        # 一键启动 backend + frontend
+├── Makefile                  # docker compose 便捷命令
+├── README.md                 # 根 README（含 Docker 启动章节）
 └── AGENTS.md                 # 开发规则
 ```

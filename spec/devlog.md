@@ -69,5 +69,29 @@
   - 协议抽象让 sync 函数零 akshare 依赖；测试用 monkeypatch 替换 `_build_client`
   - akshare 依赖装好后 `ak.fund_etf_spot_em()` 即可拉全市场 ETF；运行时 `time.sleep` 防限流可后续加入
 
+## change: docker-compose
+- 日期：2026-06-26
+- 分支：feature/docker-compose
+- 阶段：proposal → brainstorming → spec → executing → archive（全部完成）
+- 实现：
+  - `docker-compose.yml`：backend + frontend 两服务，etf-net 网络，etf-db / backend-venv / frontend-node-modules 三个 named volume
+  - `backend/Dockerfile`：python:3.11-slim + uv，`uv sync --frozen --extra dev`，uvicorn --reload
+  - `frontend/Dockerfile`：node:24-alpine + corepack pnpm@latest，`pnpm install --frozen-lockfile`，vite dev --host 0.0.0.0
+  - 子目录 bind mount（`./backend/app` 而非 `./backend`）避免覆盖容器内 `.venv` / `node_modules`
+  - `frontend/.npmrc` + Dockerfile env（PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 / PNPM_CONFIG_DANGEROUSLY_ALLOW_ALL_BUILDS）放松 pnpm 11 严格策略
+  - 根 `Makefile`：up/down/logs/ps/rebuild/shell-backend/shell-frontend/verify/clean/help
+  - `scripts/verify-docker.sh`：docker compose config + curl 三端点冒烟
+  - 根 `README.md`：完整 Docker Compose 启动章节；backend/frontend README 各加 Docker 子节
+- 测试：容器内 `uv run pytest` → 41/41 通过（与本地一致）
+- 验证：
+  - `docker compose config --quiet` 退出码 0
+  - 两镜像成功 build（首次约 1 分钟，受网络限制）
+  - `docker compose up -d` 后 /health `{"status":"ok"}`、/api/v1/etfs/count `{"count":1}`（从 volume 恢复测试行）、frontend `/` HTTP 200
+  - `docker compose down` + `up -d` 后数据保留（named volume 验证通过）
+  - `docker compose exec backend uv run alembic upgrade head` 应用迁移 8c872b9f6bda
+- 备注：
+  - pnpm 11 在 Docker 容器内默认开启 minimum-release-age 与 build approval 策略；通过 Dockerfile env 放宽以适配 dev 镜像；生产镜像应在另一次 change 中 multi-stage build
+  - bind mount 用子目录而非根目录是必要的，否则 host 的 `.venv` 缺失会污染容器内 venv
+
 
 
