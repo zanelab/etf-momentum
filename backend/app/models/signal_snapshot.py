@@ -19,8 +19,8 @@ class SignalSnapshot(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     etf_code: Mapped[str] = mapped_column(String(10), nullable=False)
-    momentum_score: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
-    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    momentum_score: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
     action: Mapped[str] = mapped_column(String(8), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
