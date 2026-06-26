@@ -23,12 +23,18 @@ backend/
 │   │   └── signal_snapshot.py
 │   ├── repositories/
 │   │   └── etf_repository.py   # EtfRepository
+│   ├── data/                   # akshare 数据同步
+│   │   ├── client.py           # AkshareClient Protocol + Http + Fake
+│   │   ├── etf_master.py       # sync_etf_master
+│   │   ├── daily_prices.py     # sync_daily_prices
+│   │   ├── upsert.py           # upsert_etf / upsert_daily_price
+│   │   └── sync.py             # CLI 入口 (python -m app.data.sync)
 │   └── api/
 │       ├── health.py           # GET /health
 │       └── v1/
 │           ├── etfs.py         # GET /api/v1/etfs/count
 │           └── router.py
-├── tests/                      # 21 个 pytest 用例
+├── tests/                      # 41 个 pytest 用例
 │   ├── conftest.py
 │   ├── test_health.py
 │   ├── test_etf.py
@@ -37,7 +43,12 @@ backend/
 │   ├── test_signal_snapshot.py
 │   ├── test_session.py
 │   ├── test_config.py
-│   └── test_etfs_api.py
+│   ├── test_etfs_api.py
+│   ├── test_akshare_client.py
+│   ├── test_upsert.py
+│   ├── test_etf_master_sync.py
+│   ├── test_daily_prices_sync.py
+│   └── test_sync_cli.py
 ├── alembic/                    # 迁移目录
 │   ├── env.py
 │   └── versions/8c872b9f6bda_initial_schema.py

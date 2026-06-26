@@ -52,4 +52,22 @@
   - `test_get_db_rollback_on_exception` 使用 `generator.throw()` 才能把异常注入到 yield 暂停处的 generator 内部（不能直接 `next()`）
   - 同步 SQLAlchemy 需要 `greenlet` 包以兼容某些场景
 
+## change: akshare-data-sync
+- 日期：2026-06-26
+- 分支：feature/akshare-data-sync
+- 阶段：proposal → brainstorming → spec → executing → archive（全部完成）
+- 实现：
+  - `AkshareClient` Protocol + `AkshareHttpClient`（懒加载 akshare）+ `FakeAkshareClient`（测试替身）
+  - `EtfMasterRow` / `DailyPriceRow` dataclass 作为类型化传输对象
+  - `upsert_etf` / `upsert_daily_price` 使用 `sqlite.insert(...).on_conflict_do_update`
+  - `sync_etf_master(session, client)`：拉全市场 ETF 主数据并 upsert
+  - `sync_daily_prices(session, client, codes, start, end, full)`：按 code 拉日线；增量模式自动查 DB 最后日期+1；单只失败 log+skip 不中断
+  - CLI `python -m app.data.sync etfs|prices`，退出码 0/1/2
+- 测试：pytest 41/41 通过（新增 20 个：4 client + 4 upsert + 3 etf_master + 5 daily_prices + 4 CLI）
+- 验证：`python -m app.data.sync --help` 与两个子命令 `--help` 正常打印
+- 备注：
+  - 协议抽象让 sync 函数零 akshare 依赖；测试用 monkeypatch 替换 `_build_client`
+  - akshare 依赖装好后 `ak.fund_etf_spot_em()` 即可拉全市场 ETF；运行时 `time.sleep` 防限流可后续加入
+
+
 

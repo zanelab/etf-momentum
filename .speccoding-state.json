@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "sqlite-data-model",
-  "current_phase": "merge",
-  "branch": "feature/sqlite-data-model",
+  "active_change": "akshare-data-sync",
+  "current_phase": "archive",
+  "branch": "feature/akshare-data-sync",
   "parent_branch": "main",
   "proposal_confirmed": true,
   "design_confirmed": true,
   "spec_created": true,
   "plan_created": true,
-  "plan_total": 42,
-  "plan_done": 42,
+  "plan_total": 31,
+  "plan_done": 31,
   "spec_synced": true,
-  "code_pushed": true,
-  "created_at": "2026-06-26T04:44:43Z",
-  "updated_at": "2026-06-26T14:10:00Z"
+  "code_pushed": false,
+  "created_at": "2026-06-26T14:15:00Z",
+  "updated_at": "2026-06-26T14:35:00Z"
 }

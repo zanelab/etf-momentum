@@ -86,6 +86,29 @@ uv run pytest
 
 价格字段使用 `Numeric(10, 4)`，避免浮点误差；成交量使用 `BigInteger`。
 
+## 数据同步（akshare）
+
+CLI 入口：`python -m app.data.sync`
+
+```bash
+# 同步全市场 ETF 主数据到 etfs 表
+uv run python -m app.data.sync etfs
+
+# 同步指定 ETF 的日线行情（增量模式：从 DB 最后日期+1 到今天）
+uv run python -m app.data.sync prices --codes 510300,510500
+
+# 显式指定日期区间
+uv run python -m app.data.sync prices --codes 510300 \
+  --start 2024-01-01 --end 2024-12-31
+
+# 全量拉取（从 akshare 起点 2000-01-01 到今天）
+uv run python -m app.data.sync prices --codes 510300 --full
+```
+
+实现采用 Protocol 抽象（`AkshareClient`），sync 函数只依赖接口。运行时注入 `AkshareHttpClient`，测试注入 `FakeAkshareClient`，无需网络。
+
+Upsert 通过 SQLite `INSERT ... ON CONFLICT DO UPDATE` 实现，重复运行同步相同区间不会抛错。CLI 退出码：0 全部成功 / 1 部分失败 / 2 全部失败。
+
 ## 项目结构
 
 ```
