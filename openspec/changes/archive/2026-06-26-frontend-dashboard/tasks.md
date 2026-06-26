@@ -37,7 +37,7 @@
 
 ## 7. 端到端冒烟（手动）
 
-- [ ] 7.1 `pnpm --dir frontend dev` 启动 Vite，后端 `uvicorn` 已在 8000 端口
-- [ ] 7.2 浏览器打开 `http://localhost:5173/`，确认自动重定向到 `/dashboard`
-- [ ] 7.3 确认表格 BUY/HOLD/WATCH 颜色徽章正确，summary 卡显示 snapshot 日期与计数
-- [ ] 7.4 后端关掉后刷新，确认 signals 错误卡 + ETF 降级渲染
+- [x] 7.1 `pnpm --dir frontend dev` 启动 Vite，后端 `uvicorn` 已在 8000 端口
+- [x] 7.2 浏览器打开 `http://localhost:5173/`，确认自动重定向到 `/dashboard`
+- [x] 7.3 确认表格 BUY/HOLD/WATCH 颜色徽章正确，summary 卡显示 snapshot 日期与计数
+- [x] 7.4 后端关掉后刷新，确认 signals 错误卡 + ETF 降级渲染
