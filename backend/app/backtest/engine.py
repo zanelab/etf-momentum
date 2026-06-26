@@ -19,6 +19,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Iterable
 
+from app.backtest.metrics import compute_metrics
 from app.factors.momentum import compute_momentum_scores, rank_scores
 
 
@@ -144,87 +145,6 @@ def _slice_closes_for_momentum(
 
 
 # ---------------------------------------------------------------------------
-# Metrics
-# ---------------------------------------------------------------------------
-
-
-def _decimal_pow(base: Decimal, exponent: Decimal) -> Decimal:
-    """Fractional-exponent power via float intermediate (used only for annualized).
-
-    Acceptable here: annualized return is a derived statistic; the underlying
-    NAV values themselves stay full-precision Decimal.
-    """
-    import math
-    if base <= 0:
-        return Decimal("0")
-    return Decimal(str(math.pow(float(base), float(exponent))))
-
-
-def _compute_metrics(
-    nav_series: list[tuple[date, Decimal]],
-    initial_cash: Decimal,
-) -> dict[str, Decimal | None]:
-    """Compute total / annualized / max drawdown / sharpe from a NAV series."""
-    if not nav_series:
-        return {
-            "total_return": Decimal("0"),
-            "annualized_return": Decimal("0"),
-            "max_drawdown": Decimal("0"),
-            "sharpe_ratio": None,
-        }
-
-    initial = initial_cash
-    final = nav_series[-1][1]
-    total_return = final / initial - Decimal("1")
-
-    days = (nav_series[-1][0] - nav_series[0][0]).days
-    if days > 0 and final > 0 and initial > 0:
-        years = Decimal(days) / Decimal("365")
-        annualized_return = (
-            _decimal_pow(final / initial, Decimal(1) / years) - Decimal("1")
-        )
-    else:
-        annualized_return = Decimal("0")
-
-    peak = nav_series[0][1]
-    max_dd = Decimal("0")
-    for _, nav in nav_series:
-        if nav > peak:
-            peak = nav
-        if peak > 0:
-            dd = peak / nav - Decimal("1")
-            if dd > max_dd:
-                max_dd = dd
-
-    daily_returns: list[Decimal] = []
-    for i in range(1, len(nav_series)):
-        prev = nav_series[i - 1][1]
-        curr = nav_series[i][1]
-        if prev > 0:
-            daily_returns.append(curr / prev - Decimal("1"))
-
-    sharpe_ratio: Decimal | None
-    if len(daily_returns) < 2:
-        sharpe_ratio = None
-    else:
-        n = Decimal(len(daily_returns))
-        mean_r = sum(daily_returns, Decimal("0")) / n
-        variance = sum((r - mean_r) ** 2 for r in daily_returns) / (n - Decimal("1"))
-        std_r = variance.sqrt()
-        if std_r == 0:
-            sharpe_ratio = None
-        else:
-            sharpe_ratio = (mean_r / std_r) * Decimal("252").sqrt()
-
-    return {
-        "total_return": total_return,
-        "annualized_return": annualized_return,
-        "max_drawdown": max_dd,
-        "sharpe_ratio": sharpe_ratio,
-    }
-
-
-# ---------------------------------------------------------------------------
 # Main engine
 # ---------------------------------------------------------------------------
 
@@ -321,7 +241,7 @@ def run_backtest(
             )
         )
 
-    metrics = _compute_metrics(nav_series, params.initial_cash)
+    metrics = compute_metrics(nav_series, params.initial_cash)
     return BacktestResult(
         nav_series=nav_series,
         rebalance_log=rebalance_log,

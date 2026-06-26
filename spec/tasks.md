@@ -12,7 +12,7 @@
 ### 阶段 2：核心能力
 - [x] 动量因子计算模块（12-1 动量）*(2026-06-26 完成，change: momentum-factor)*
 - [x] 回测引擎（参数化：ETF 池、动量窗口、调仓频率）*(2026-06-26 完成，change: backtest-engine)*
-- [ ] 业绩指标计算（年化收益、最大回撤、夏普）
+- [x] 业绩指标计算（年化收益、最大回撤、夏普 + Sortino + Calmar）*(2026-06-26 完成，change: metrics-extraction)*
 - [ ] 实时信号计算与排名
 
 ### 阶段 3：API + 前端

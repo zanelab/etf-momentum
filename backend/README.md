@@ -248,6 +248,8 @@ with SessionLocal() as session:
 | `max_drawdown` | `max over t of (peak(t) / nav(t) - 1)`；`peak(t) = max(nav[0..t])` |
 | `sharpe_ratio` | `mean(daily_returns) / std(daily_returns) * sqrt(252)`（无风险利率 = 0）；std = 0 时为 `None` |
 
+> 完整的 6 个指标（含 Sortino / Calmar）已抽出到独立模块 `app/backtest/metrics.py`，详见下文「业绩指标」章节。
+
 ### 设计决策
 
 | 决策 | 行为 | 说明 |
@@ -259,6 +261,70 @@ with SessionLocal() as session:
 | 计算与持久化分离 | `run_backtest` 纯函数；`save_backtest_run` 写 ORM | 单测只测计算逻辑；持久化 mock session |
 | Decimal 精度 | 净值 / 权重 全程 Decimal；sharpe 用 `Decimal.sqrt()`（Py 3.11+） | 与 DailyPrice.Numeric(10,4) 同族 |
 | 摩擦建模 | **无** 手续费 / 滑点 / 印花税 / 分红再投资 | MVP 简化；后续可加 fee/slippage 参数 |
+
+## 业绩指标
+
+`app.backtest.metrics.compute_metrics` 是纯函数，接收净值序列返回 6 个业绩指标。可独立 import（不依赖 engine / DB），便于实时信号模块未来复用。
+
+### 6 个指标
+
+| 指标 | 公式 | 边界处理 |
+|------|------|---------|
+| `total_return` | `(final_nav / initial_cash) - 1` | 空序列 → `Decimal("0")` |
+| `annualized_return` | `(final / initial) ** (365 / days) - 1`，`days = (last - first).days` | `days <= 0` 或非正净值 → `Decimal("0")` |
+| `max_drawdown` | `max over t of (peak(t) / nav(t) - 1)`，`peak(t) = max(nav[0..t])` | 空序列 → `Decimal("0")` |
+| `sharpe_ratio` | `mean(excess) / std(all_returns) * sqrt(252)`，`excess = r - risk_free_rate / 252` | std = 0 或 `< 2 returns` → `None` |
+| `sortino_ratio` | `mean(excess) / std(negative_returns) * sqrt(252)`（仅下行波动） | 无负收益或 `< 2 returns` → `None` |
+| `calmar_ratio` | `annualized_return / max_drawdown` | `max_drawdown == 0` → `None` |
+
+**年化因子**：`sqrt(252)`，与 AQR / Carhart 等学术文献一致（标准 1 年交易日数）。
+**日收益**：`nav[i] / nav[i-1] - 1`，从 i = 1 开始。
+
+### 调用示例
+
+```python
+from datetime import date
+from decimal import Decimal
+from app.backtest import compute_metrics
+
+nav_series = [
+    (date(2024, 1, 1),  Decimal("100")),
+    (date(2024, 6, 30), Decimal("110")),
+    (date(2024, 12, 31), Decimal("120")),
+]
+metrics = compute_metrics(nav_series, Decimal("100"))
+# {
+#   "total_return":       Decimal("0.2"),
+#   "annualized_return":  Decimal("0.2"),
+#   "max_drawdown":       Decimal("0"),
+#   "sharpe_ratio":       ...,
+#   "sortino_ratio":      ...,
+#   "calmar_ratio":       ...,
+# }
+
+# 显式传无风险利率（年化）
+metrics = compute_metrics(
+    nav_series,
+    Decimal("100"),
+    risk_free_rate=Decimal("0.02"),  # 2% 年化
+)
+```
+
+### 边界行为速查
+
+| 输入 | 行为 |
+|------|------|
+| `nav_series = []` | 全部 0 / None（ratios 全部 None） |
+| 单点 | `total_return = 0`，所有 ratios = None |
+| 常数 NAV（无波动） | `sharpe_ratio` / `sortino_ratio` = None（std = 0） |
+| 全部正收益 | `sortino_ratio` = None（无下行波动） |
+| 单点负收益 | `sortino_ratio` = None（std 自由度不足） |
+| 单调递增 NAV | `max_drawdown = 0`，`calmar_ratio` = None |
+| 净值下跌 | `calmar_ratio` 为负数（允许） |
+
+### 与回测引擎的关系
+
+`app/backtest/engine.py:run_backtest` 内部直接调用 `compute_metrics(nav_series, params.initial_cash)`，不再内嵌计算逻辑。如需在调用方拿到完整的 6 个指标（含 sortino / calmar），直接读 `BacktestResult.metrics` 即可。
 
 ## Docker
 
@@ -308,7 +374,7 @@ backend/
 │   │       ├── etfs.py          # /api/v1/etfs/count
 │   │       └── router.py
 │   └── main.py
-├── tests/                       # 98 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化）
+├── tests/                       # 119 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化 + 21 业绩指标）
 ├── alembic/                     # 迁移
 │   ├── env.py
 │   └── versions/8c872b9f6bda_initial_schema.py
