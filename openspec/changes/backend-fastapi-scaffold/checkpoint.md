@@ -1,8 +1,8 @@
 # Checkpoint
 
-**写入时间**: 2026-06-26T03:22:02Z
+**写入时间**: 2026-06-26T03:22:23Z
 **项目根目录**: /Users/zane/Workspace/etf-momentum
-**阶段**: archive
+**阶段**: merge
 **活跃变更**: backend-fastapi-scaffold
 **分支**: feature/backend-fastapi-scaffold
 **父分支**: main
@@ -17,6 +17,7 @@
 ## 最近修改的文件
 
 ```
+86a165d chore(archive): complete backend-fastapi-scaffold change
 e462923 docs(devlog): record backend-fastapi-scaffold change progress
 2ccb33a feat(backend): FastAPI scaffold with /health, /docs, /redoc, pytest
 c2b3eab docs: fill project spec (requirements/design/tasks) for v1.0 MVP
