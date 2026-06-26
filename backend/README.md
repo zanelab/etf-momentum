@@ -109,6 +109,21 @@ uv run python -m app.data.sync prices --codes 510300 --full
 
 Upsert 通过 SQLite `INSERT ... ON CONFLICT DO UPDATE` 实现，重复运行同步相同区间不会抛错。CLI 退出码：0 全部成功 / 1 部分失败 / 2 全部失败。
 
+## Docker
+
+详见根目录 `README.md` 的「Docker Compose」章节。本目录下：
+
+- `Dockerfile`：基于 `python:3.11-slim` + uv，`uvicorn --reload` 启动
+- `.dockerignore`：排除 `.venv`、`__pycache__`、`*.db` 等
+
+容器内 CLI：
+
+```bash
+# 在 backend 容器内运行
+docker compose exec backend uv run python -m app.data.sync etfs
+docker compose exec backend uv run python -m app.data.sync prices --codes 510300
+```
+
 ## 项目结构
 
 ```
