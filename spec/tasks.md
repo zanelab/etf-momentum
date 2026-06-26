@@ -6,7 +6,7 @@
 - [x] 后端 FastAPI 脚手架 *(2026-06-26 完成，change: backend-fastapi-scaffold)*
 - [x] 前端 Vite + React 脚手架 *(2026-06-26 完成，change: frontend-vite-react-scaffold)*
 - [x] SQLite 数据模型（ETF, DailyPrice, BacktestRun, SignalSnapshot）*(2026-06-26 完成，change: sqlite-data-model)*
-- [ ] akshare / baostock 数据同步脚本
+- [x] akshare 数据同步脚本 *(2026-06-26 完成，change: akshare-data-sync)*
 - [ ] Docker compose 本地启动
 
 ### 阶段 2：核心能力
