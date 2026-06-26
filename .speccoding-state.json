@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "frontend-dashboard",
-  "current_phase": "merge",
-  "branch": "feature/frontend-dashboard",
+  "active_change": "frontend-backtest-ui",
+  "current_phase": "executing",
+  "branch": "feature/frontend-backtest-ui",
   "parent_branch": "main",
   "proposal_confirmed": "true",
   "design_confirmed": "true",
   "spec_created": "true",
   "plan_created": "true",
-  "plan_total": "21",
-  "plan_done": "21",
-  "spec_synced": "true",
-  "code_pushed": "true",
-  "created_at": "2026-06-26T14:13:37Z",
-  "updated_at": "2026-06-26T14:56:50Z"
+  "plan_total": "24",
+  "plan_done": "0",
+  "spec_synced": false,
+  "code_pushed": false,
+  "created_at": "2026-06-26T15:04:04Z",
+  "updated_at": "2026-06-26T15:04:05Z"
 }
