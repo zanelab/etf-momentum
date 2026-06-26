@@ -93,5 +93,25 @@
   - pnpm 11 在 Docker 容器内默认开启 minimum-release-age 与 build approval 策略；通过 Dockerfile env 放宽以适配 dev 镜像；生产镜像应在另一次 change 中 multi-stage build
   - bind mount 用子目录而非根目录是必要的，否则 host 的 `.venv` 缺失会污染容器内 venv
 
+## change: momentum-factor
+- 日期：2026-06-26
+- 分支：feature/momentum-factor
+- 阶段：proposal → brainstorming → spec → executing → archive（全部完成）
+- 实现：
+  - `app/factors/__init__.py` re-export 三个公开函数
+  - `app/factors/momentum.py`：
+    - `_validate_closes(closes, lookback, skip)` 辅助：None / 空 / 长度不足 / 非 Decimal / `close <= 0` → False
+    - `compute_momentum_score(closes, lookback=252, skip=21) -> Decimal | None`：标准 12-1 公式 `(closes[-skip-1] / closes[-skip-1-lookback]) - 1`，全 Decimal 算术，不 quantize
+    - `compute_momentum_scores(price_history, ...) -> dict[str, Decimal | None]`：批量版本，输入不被修改
+    - `rank_scores(scores) -> list[tuple[str, int | None, Decimal | None]]`：competition ranking 跳号赋名次，None 项 `rank=None` 排末尾，输入 dict 顺序作 tiebreaker（依赖 Python sorted 稳定性）
+- 测试：pytest 27 个新用例，总计 68/68 通过
+- 验证：
+  - pytest RED → GREEN 周期已确认（先写 test_momentum.py 全部 FAIL，再写 momentum.py 后全部 PASS）
+  - 手工验证 13 项 acceptance criteria 全过：手算预期值 0.20、最小长度 274、负收益 -0.20、0/负数异常 → None、float 输入 → None、同分 `1,1,3` 跳号、None 末尾 `rank=None`、空 dict → []
+- README：`backend/README.md` 新增「动量因子」章节（公式 / 模块位置 / API 用法 / 设计决策表）
+- 备注：
+  - speccoding-tdd.sh `verify` 命令有 bug：dispatcher 已 consume `verify`、函数内又 `shift` 导致第一个文件被吞；本次手动验证（测试文件存在 + mtime ≥ impl + pytest 通过）替代
+  - 本 change 严格遵循「纯函数不读不写 DB」，持久化由后续「实时信号计算与排名」change 负责
+
 
 
