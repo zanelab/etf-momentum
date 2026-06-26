@@ -15,9 +15,10 @@ A 股 ETF 动量策略系统的后端服务。基于 FastAPI + SQLAlchemy 2.0 + 
 - Session 通过 FastAPI `Depends(get_db)` 注入
 - akshare 数据同步（CLI：`python -m app.data.sync`）
 - 动量因子计算原语（`app/factors/momentum`）—— 12-1 动量纯函数模块
+- 回测引擎（`app/backtest`）—— 纯函数 `run_backtest` + 持久化 `save_backtest_run`
 - 自动化测试覆盖（`pytest` + 内存 SQLite）
 
-后续将在此基础上添加回测引擎、信号计算持久化、REST API 等业务模块。
+后续将在此基础上添加业绩指标独立模块、实时信号计算与持久化、REST API 等业务模块。
 
 ## 环境要求
 
@@ -172,6 +173,93 @@ ranked = rank_scores(scores)
 | 范围 | **不写** `signal_snapshots` | 持久化由后续「实时信号计算与排名」change 负责 |
 | 范围 | 仅做动量单因子 | 多因子合成、行业中性化等不在本模块范围 |
 
+## 回测引擎
+
+把「动量因子 + 调仓规则 + 净值跟踪」串成端到端流程。`run_backtest` 是纯函数（不读 DB），`save_backtest_run` 单独负责持久化。
+
+### 模块位置
+
+```
+app/backtest/
+├── __init__.py             # re-export BacktestParams / run_backtest / save_backtest_run
+├── engine.py               # 纯计算：run_backtest + BacktestParams + RebalanceEvent + BacktestResult
+└── persistence.py          # save_backtest_run：写 BacktestRun ORM 行
+```
+
+### 参数 `BacktestParams`
+
+| 字段 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `etf_pool` | `list[str]` | — | ETF 代码池 |
+| `start` | `date` | — | 回测起始日 |
+| `end` | `date` | — | 回测结束日 |
+| `initial_cash` | `Decimal` | — | 初始资金 |
+| `lookback` | `int` | 252 | 动量回望窗口（交易日） |
+| `skip` | `int` | 21 | 动量 skip（交易日） |
+| `top_n` | `int` | 5 | 每月/季选 top-N |
+| `rebalance_freq` | `RebalanceFrequency` | MONTHLY | 调仓频率：`MONTHLY` / `QUARTERLY` |
+
+### API 用法
+
+```python
+from datetime import date
+from decimal import Decimal
+from app.backtest import (
+    BacktestParams,
+    RebalanceFrequency,
+    run_backtest,
+    save_backtest_run,
+)
+from app.db.session import SessionLocal
+
+# 1) 准备价格历史（通常从 DailyPrice 表读出后转成此格式）
+price_history: dict[str, list[tuple[date, Decimal]]] = {
+    "510300": [(date(2024, 1, 2), Decimal("3.85")), ...],
+    "510500": [...],
+}
+
+# 2) 构造参数
+params = BacktestParams(
+    etf_pool=["510300", "510500"],
+    start=date(2024, 1, 1),
+    end=date(2024, 12, 31),
+    initial_cash=Decimal("100000"),
+    top_n=2,
+    rebalance_freq=RebalanceFrequency.MONTHLY,
+)
+
+# 3) 运行回测（纯函数，无 DB）
+result = run_backtest(params, price_history)
+print(result.metrics)
+# → {'total_return': Decimal('0.20'), 'annualized_return': Decimal('0.20'),
+#    'max_drawdown': Decimal('0.05'), 'sharpe_ratio': Decimal('1.5')}
+
+# 4) 持久化
+with SessionLocal() as session:
+    run = save_backtest_run(session, params, result)
+```
+
+### 业绩指标公式
+
+| 指标 | 公式 |
+|------|------|
+| `total_return` | `(final_nav / initial_cash) - 1` |
+| `annualized_return` | `(final_nav / initial_cash) ** (365 / days) - 1` |
+| `max_drawdown` | `max over t of (peak(t) / nav(t) - 1)`；`peak(t) = max(nav[0..t])` |
+| `sharpe_ratio` | `mean(daily_returns) / std(daily_returns) * sqrt(252)`（无风险利率 = 0）；std = 0 时为 `None` |
+
+### 设计决策
+
+| 决策 | 行为 | 说明 |
+|------|------|------|
+| 权重 | **等权**（每个入选 ETF 拿 1/top_n 资金） | 学术标准、AQR 默认；不足 top_n 时按比例摊分剩余 |
+| 调仓日 | `MONTHLY` = 该月最后一个交易日；`QUARTERLY` = 3/6/9/12 月最后交易日 | A 股业界惯例 |
+| 退市 ETF | 最后有数据的一日按 close 卖出，转为现金 | NAV 保持连续，避免估值冻结 |
+| 净值跟踪 | **每日跟踪**，用每日 close 重估持仓 | max_drawdown 准确，UI 曲线完整 |
+| 计算与持久化分离 | `run_backtest` 纯函数；`save_backtest_run` 写 ORM | 单测只测计算逻辑；持久化 mock session |
+| Decimal 精度 | 净值 / 权重 全程 Decimal；sharpe 用 `Decimal.sqrt()`（Py 3.11+） | 与 DailyPrice.Numeric(10,4) 同族 |
+| 摩擦建模 | **无** 手续费 / 滑点 / 印花税 / 分红再投资 | MVP 简化；后续可加 fee/slippage 参数 |
+
 ## Docker
 
 详见根目录 `README.md` 的「Docker Compose」章节。本目录下：
@@ -211,13 +299,16 @@ backend/
 │   │   └── sync.py              # CLI 入口
 │   ├── factors/                 # 因子计算原语
 │   │   └── momentum.py          # 12-1 动量
+│   ├── backtest/                # 回测引擎
+│   │   ├── engine.py            # run_backtest + BacktestParams + BacktestResult
+│   │   └── persistence.py       # save_backtest_run
 │   ├── api/
 │   │   ├── health.py
 │   │   └── v1/
 │   │       ├── etfs.py          # /api/v1/etfs/count
 │   │       └── router.py
 │   └── main.py
-├── tests/                       # 68 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子）
+├── tests/                       # 98 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化）
 ├── alembic/                     # 迁移
 │   ├── env.py
 │   └── versions/8c872b9f6bda_initial_schema.py
@@ -228,8 +319,7 @@ backend/
 
 ## 后续计划
 
-- 回测引擎（参数化：ETF 池、动量窗口、调仓频率）
-- 业绩指标计算（年化收益、最大回撤、夏普）
+- 业绩指标独立模块（从回测引擎抽出）
 - 实时信号计算与排名（写入 `signal_snapshots`）
 - 业务 API：`/api/etfs` / `/api/signals` / `/api/backtest`
 - 任务调度（每日数据更新）
