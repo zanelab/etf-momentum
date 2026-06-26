@@ -18,7 +18,7 @@
 ### 阶段 3：API + 前端
 - [x] 后端 REST API（`/api/etfs`, `/api/signals`, `/api/backtest`）*(2026-06-26 完成，change: rest-api)*
 - [x] 前端 Dashboard：动量排名 + 调仓建议 *(2026-06-26 完成，change: frontend-dashboard)*
-- [ ] 前端 Backtest UI：参数选择 + 业绩图表
+- [x] 前端 Backtest UI：参数选择 + 业绩图表 *(2026-06-26 完成，change: frontend-backtest-ui)*
 - [ ] 前端 ETF 池管理
 
 ### 阶段 4：质量与交付
