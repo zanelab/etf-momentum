@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "backtest-engine",
+  "active_change": "metrics-extraction",
   "current_phase": "merge",
-  "branch": "feature/backtest-engine",
+  "branch": "feature/metrics-extraction",
   "parent_branch": "main",
   "proposal_confirmed": "true",
   "design_confirmed": "true",
   "spec_created": "true",
   "plan_created": "true",
-  "plan_total": "54",
-  "plan_done": "54",
+  "plan_total": "43",
+  "plan_done": 0,
   "spec_synced": "true",
   "code_pushed": "true",
-  "created_at": "2026-06-26T08:03:59Z",
-  "updated_at": "2026-06-26T08:27:14Z"
+  "created_at": "2026-06-26T08:45:49Z",
+  "updated_at": "2026-06-26T08:58:43Z"
 }

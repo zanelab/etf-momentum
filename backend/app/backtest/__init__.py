@@ -11,6 +11,7 @@ from app.backtest.engine import (
     RebalanceFrequency,
     run_backtest,
 )
+from app.backtest.metrics import compute_metrics
 from app.backtest.persistence import save_backtest_run
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "BacktestResult",
     "RebalanceEvent",
     "RebalanceFrequency",
+    "compute_metrics",
     "run_backtest",
     "save_backtest_run",
 ]

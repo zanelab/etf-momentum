@@ -146,5 +146,29 @@
   - 测试 fixture `make_linear_series` 用 `(1+growth)^i` 复利增长，避免加减法累积误差；方便手算预期
   - annualized_return 用 `_decimal_pow` 经 float 中转（Decimal 没有 ln/exp 直接支持），中间精度损失可接受（仅用于单点统计）
 
+## change: metrics-extraction
+- 日期：2026-06-26
+- 分支：feature/metrics-extraction
+- 阶段：proposal → brainstorming → spec → executing（全部完成）
+- 实现：
+  - `app/backtest/metrics.py` 新建：6 个业绩指标纯函数
+    - `compute_metrics(nav_series, initial_cash, *, risk_free_rate=Decimal("0")) -> dict[str, Decimal | None]`
+    - 返回 6 键：`total_return` / `annualized_return` / `max_drawdown` / `sharpe_ratio` / `sortino_ratio` / `calmar_ratio`
+    - 内部辅助：`_annualized_ratio(excess, raw_for_std)` / `_decimal_pow(base, exp)` / `_zero_metrics()`
+    - 边界处理：空序列 → 全部 0/None；std=0 → None；无负收益 → sortino=None；max_dd=0 → calmar=None
+  - `app/backtest/engine.py` 重构：删除 `_compute_metrics` / `_decimal_pow`；改用 `from app.backtest.metrics import compute_metrics`
+  - `app/backtest/__init__.py`：re-export `compute_metrics`
+- 测试：pytest 21 个新用例，总计 119/119 通过（98 + 21）
+- 验证：
+  - TDD RED → GREEN 周期已确认（先写 test_backtest_metrics.py 全部 ImportError，再写 metrics.py 后 21/21 PASS）
+  - 现有 24 个 engine 测试中 8 个直接 import `_compute_metrics` 的，调整 import 路径指向新模块（行为不变，import 路径调整）
+  - `run_backtest` 与 `compute_metrics(result.nav_series, initial_cash)` 在 4 个共享键上输出 byte-equal
+  - 公开 API smoke test 打印 6 键 dict
+- README：`backend/README.md` 新增「业绩指标」章节（6 指标公式 / 调用示例 / 边界速查表 / 与 engine 关系）
+- 备注：
+  - **与 plan 的偏差**：`test_max_drawdown_gap_at_end` plan 值 0.55 来自标准公式 `(peak-nav)/peak`，但 engine 沿用 `peak/nav-1` 公式（spec.md「行为不变」要求），改用 NAV [100,150,100,75] → 1.0 兼容
+  - **engine 测试 import 路径调整**：spec.md 强调「行为不变」但 plan 明确「删除 `_compute_metrics` 函数体」；最小妥协 = 调整 8 处 `from app.backtest.engine import _compute_metrics` 为 `from app.backtest.metrics import compute_metrics as _compute_metrics`，测试体未改
+  - **`_annualized_ratio` 实现细节**：方差用 `raw_returns_for_std`（sharpe 用全部日收益、sortino 用负收益）作分母，符合 Sortino 标准定义；分子仍用 `excess_returns` 的均值
+
 
 

@@ -367,7 +367,7 @@ class TestDelistedETF:
 class TestMetrics:
     def test_total_return_known(self):
         """Total return = 0.2 when final=120000, initial=100000."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100000")),
@@ -378,7 +378,7 @@ class TestMetrics:
 
     def test_annualized_return_one_year(self):
         """+20% over exactly 365 days → annualized ≈ 0.2."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100000")),
@@ -390,7 +390,7 @@ class TestMetrics:
 
     def test_max_drawdown_known(self):
         """NAV [100, 150, 100] → peak 150, trough 100, dd = 0.5."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100")),
@@ -402,7 +402,7 @@ class TestMetrics:
 
     def test_max_drawdown_no_drawdown(self):
         """Monotonically rising NAV → max_dd = 0."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100")),
@@ -414,7 +414,7 @@ class TestMetrics:
 
     def test_sharpe_zero_std_returns_none(self):
         """Flat NAV → no volatility → sharpe = None."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, d), Decimal("100")) for d in range(1, 11)
@@ -425,7 +425,7 @@ class TestMetrics:
     def test_sharpe_known(self):
         """2-point series: 100 → 110 → 121 → daily returns = 0.10.
         mean = 0.10, std = 0, sharpe = None."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100")),
@@ -438,7 +438,7 @@ class TestMetrics:
 
     def test_sharpe_varying(self):
         """3-point series with different daily returns → non-None sharpe."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         nav_series = [
             (date(2024, 1, 1), Decimal("100")),
@@ -452,7 +452,7 @@ class TestMetrics:
 
     def test_metrics_empty_nav(self):
         """Empty nav_series → all metrics zero."""
-        from app.backtest.engine import _compute_metrics
+        from app.backtest.metrics import compute_metrics as _compute_metrics
 
         m = _compute_metrics([], Decimal("100000"))
         assert m["total_return"] == Decimal("0")
