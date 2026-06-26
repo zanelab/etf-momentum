@@ -2,6 +2,16 @@
 
 A 股 ETF 动量策略系统的前端。基于 Vite + React + TypeScript，使用 pnpm 管理依赖，shadcn/ui + Tailwind 提供 UI 组件，Zustand 管理状态。
 
+## Docker
+
+详见根目录 `README.md` 的「Docker Compose」章节。本目录下：
+
+- `Dockerfile`：基于 `node:24-alpine` + pnpm（corepack 激活），`pnpm dev --host 0.0.0.0` 启动
+- `.dockerignore`：排除 `node_modules`、`dist`、`.vite`、`*.tsbuildinfo`
+- `.npmrc`：放宽 pnpm 11 的 `minimum-release-age` 与 build 策略（dev 镜像专用）
+
+容器内 HMR：`./frontend` bind mount 到容器 `/app`，编辑源码即热更新。
+
 ## 当前阶段
 最小可运行脚手架：
 - Vite dev server（5173）

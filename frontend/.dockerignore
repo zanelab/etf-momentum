@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+.env
+.env.local
+README.md
+.git/
+.idea/
+.vscode/
+*.md
+!package.json

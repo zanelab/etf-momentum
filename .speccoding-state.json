@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "akshare-data-sync",
-  "current_phase": "merge",
-  "branch": "feature/akshare-data-sync",
+  "active_change": "docker-compose",
+  "current_phase": "spec",
+  "branch": "feature/docker-compose",
   "parent_branch": "main",
   "proposal_confirmed": true,
   "design_confirmed": true,
   "spec_created": true,
   "plan_created": true,
-  "plan_total": 31,
-  "plan_done": 31,
-  "spec_synced": true,
-  "code_pushed": true,
-  "created_at": "2026-06-26T14:15:00Z",
-  "updated_at": "2026-06-26T14:42:00Z"
+  "plan_total": 35,
+  "plan_done": 0,
+  "spec_synced": false,
+  "code_pushed": false,
+  "created_at": "2026-06-26T14:45:00Z",
+  "updated_at": "2026-06-26T14:48:00Z"
 }
