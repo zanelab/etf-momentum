@@ -326,6 +326,95 @@ metrics = compute_metrics(
 
 `app/backtest/engine.py:run_backtest` 内部直接调用 `compute_metrics(nav_series, params.initial_cash)`，不再内嵌计算逻辑。如需在调用方拿到完整的 6 个指标（含 sortino / calmar），直接读 `BacktestResult.metrics` 即可。
 
+## 实时信号
+
+`app.signals.compute.compute_signals` + `app.signals.persistence.save_signal_snapshot` 把「今日 ETF 动量排名 + 调仓建议」算出并落到 `signal_snapshots` 表，供前端看板按日查询。可独立 import（不依赖 backtest / DB driver）。
+
+### SignalRow 字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `etf_code` | `str` | ETF 代码 |
+| `momentum_score` | `Decimal \| None` | 12-1 动量；quantize 到 6 位；WATCH 时为 None |
+| `rank` | `int \| None` | competition ranking（1, 1, 3 跳号）；WATCH 时为 None |
+| `action` | `str` | `BUY` / `HOLD` / `WATCH` 三态之一 |
+
+### Action 语义
+
+| Action | 条件 | 含义 |
+|--------|------|------|
+| `BUY` | `rank ≤ top_n` 且 score 非 None | 调仓日应该买入 |
+| `HOLD` | score 非 None 但 `rank > top_n` | 暂不调仓，继续持有 |
+| `WATCH` | score = None | 价格历史不足（< 273 个交易日），建议观望 |
+
+> SELL 信号（昨日 BUY 集合 − 今日 BUY 集合）由前端对比两日快照得出，不写入 action 字段。
+
+### 调用示例
+
+```python
+from datetime import date
+from decimal import Decimal
+from app.signals import compute_signals, save_signal_snapshot
+
+price_history = {
+    "510300": [(date(2024, 1, 2), Decimal("4.100")), ...],   # 至少 273 个 close
+    "510500": [(date(2024, 1, 2), Decimal("2.300")), ...],
+}
+rows = compute_signals(
+    ["510300", "510500"],
+    price_history,
+    date(2024, 12, 31),
+    top_n=2,
+)
+# [
+#   SignalRow(etf_code="510300", momentum_score=Decimal("0.234567"), rank=1, action="BUY"),
+#   SignalRow(etf_code="510500", momentum_score=Decimal("0.100000"), rank=2, action="HOLD"),
+# ]
+```
+
+### 持久化
+
+```python
+from app.signals import save_signal_snapshot
+from app.db.session import SessionLocal
+
+session = SessionLocal()
+try:
+    written = save_signal_snapshot(session, date(2024, 12, 31), rows)
+    # overwrite=True 时覆盖同 (date, etf_code) 已存在行
+finally:
+    session.close()
+```
+
+### CLI
+
+```bash
+# 计算并落库
+python -m app.data.signal run --date 2024-12-31 --pool 510300,510500,510880
+
+# 指定 top-N
+python -m app.data.signal run --date 2024-12-31 --pool 510300,510500 --top-n 2
+
+# 覆盖已存在的快照
+python -m app.data.signal run --date 2024-12-31 --pool 510300 --force
+
+# 查询
+python -m app.data.signal show --date 2024-12-31
+```
+
+CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.sync prices` 同步数据。
+
+### 边界行为速查
+
+| 输入 | 行为 |
+|------|------|
+| `etf_pool=[]` | 返回 `[]`；save 写 0 行 |
+| 价格历史 < 273 天 | 该 ETF → `WATCH`，score/rank=None，仍落库 |
+| pool 包含 DB 不存在的 code | WATCH 落库（不抛错） |
+| 同 (date, etf_code) 已存在 | `overwrite=False` 跳过；`overwrite=True` 更新 |
+| `top_n=0` 或负数 | `ValueError` |
+| `top_n > len(pool)` | 全部 BUY |
+
 ## Docker
 
 详见根目录 `README.md` 的「Docker Compose」章节。本目录下：
@@ -374,7 +463,7 @@ backend/
 │   │       ├── etfs.py          # /api/v1/etfs/count
 │   │       └── router.py
 │   └── main.py
-├── tests/                       # 119 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化 + 21 业绩指标）
+├── tests/                       # 146 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化 + 21 业绩指标 + 15 实时信号 compute + 7 实时信号 persistence + 6 实时信号 CLI）
 ├── alembic/                     # 迁移
 │   ├── env.py
 │   └── versions/8c872b9f6bda_initial_schema.py

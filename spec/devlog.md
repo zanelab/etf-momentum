@@ -170,5 +170,35 @@
   - **engine 测试 import 路径调整**：spec.md 强调「行为不变」但 plan 明确「删除 `_compute_metrics` 函数体」；最小妥协 = 调整 8 处 `from app.backtest.engine import _compute_metrics` 为 `from app.backtest.metrics import compute_metrics as _compute_metrics`，测试体未改
   - **`_annualized_ratio` 实现细节**：方差用 `raw_returns_for_std`（sharpe 用全部日收益、sortino 用负收益）作分母，符合 Sortino 标准定义；分子仍用 `excess_returns` 的均值
 
+## change: realtime-signals
+- 日期：2026-06-26
+- 分支：feature/realtime-signals
+- 阶段：proposal → brainstorming → spec → executing（全部完成）
+- 实现：
+  - `app/signals/compute.py`：纯函数 `compute_signals(etf_pool, price_history, signal_date, *, top_n=5, lookback=252, skip=21) -> list[SignalRow]`
+    - `SignalRow` frozen dataclass：`(etf_code, momentum_score, rank, action)`
+    - 复用 `app.factors.momentum.compute_momentum_scores` + `rank_scores`
+    - Action 三态：`BUY`（rank ≤ top_n）/ `HOLD`（有分但未入 top_n）/ `WATCH`（数据不足）
+    - score quantize 到 6 位（与 `Numeric(10,6)` 对齐）
+    - 返回按 rank 升序，WATCH（Nones）排末尾
+  - `app/signals/persistence.py`：`save_signal_snapshot(session, date, rows, *, overwrite=False)`
+    - 同 `(date, etf_code)` 已存在：`overwrite=False` 跳过、`overwrite=True` 更新
+  - `app/data/signal.py`：CLI `python -m app.data.signal run|show`
+    - run: 读 daily_prices → compute_signals → save_signal_snapshot；支持 `--force`
+    - show: 按 rank 升序打印
+  - `app/models/signal_snapshot.py`：`momentum_score` / `rank` 改 nullable
+  - `alembic/versions/a1b2c3d4e5f6_signal_snapshot_nullable_score_rank.py`：SQLite batch_alter_table migration
+- 测试：pytest 28 个新用例，总计 146/146 通过（119 + 28）
+- 验证：
+  - TDD RED → GREEN 周期已确认（先写 test_signals_*.py 全部 ImportError，再写信号模块后 28/28 PASS）
+  - 现有 119 测试全部通过，无回归
+  - 迁移双向验证：`alembic upgrade head` + `downgrade -1` + `upgrade head`
+  - 公开 API smoke test：CLI `--help` 与 `run --help` 正常打印
+- README：`backend/README.md` 新增「实时信号」章节（SignalRow 字段 / action 语义 / 调用示例 / CLI / 边界速查）
+- 备注：
+  - **模型字段可空化**：原 `momentum_score: NOT NULL` 不允许 WATCH 行；改为 nullable + Alembic batch migration（SQLite 不支持直接 ALTER COLUMN ... DROP NOT NULL）
+  - **CLI 命名**：最初用 `signal_cli.py` 但 `app.data.sync` 命名约定是文件名即模块名；最终重命名为 `signal.py`，调用变为 `python -m app.data.signal`
+  - **`SELL` 不入库**：MVP 由前端对比「今日 vs 昨日」BUY 集合差集得 SELL；action 字段仅 3 态（BUY/HOLD/WATCH）
+
 
 
