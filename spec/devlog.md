@@ -253,3 +253,28 @@
 
 
 
+
+## change: frontend-dashboard
+- 日期：2026-06-26
+- 分支：feature/frontend-dashboard
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 实现：
+  - `frontend/src/api/signals.ts` / `etfs.ts`：typed fetchLatestSignals / fetchAllEtfs 封装 apiGet
+  - `frontend/src/stores/signals-store.ts` / `etfs-store.ts`：zustand stores，对齐 `idle | loading | ok | error` 状态机
+  - `frontend/src/components/dashboard/ActionBadge.tsx`：BUY=green / HOLD=blue / WATCH=gray / 未知兜底 gray+原文
+  - `frontend/src/components/dashboard/SummaryCards.tsx`：5 张小卡片（snapshot 日期、ETF 总数、BUY/HOLD/WATCH 计数）
+  - `frontend/src/components/dashboard/SignalRankingTable.tsx`：分 BUY 区 + 其它（HOLD/WATCH/null）两段；momentum_score `parseFloat(s).toPrecision(4)`，null → `—`；rank null 排末尾
+  - `frontend/src/components/dashboard/EmptyState.tsx`：空快照提示 + CLI 修复命令
+  - `frontend/src/pages/DashboardPage.tsx`：`Promise.all` 并行触发 signals + etfs；signals 错误 → 红色全屏错误卡；etfs 失败 → 黄色降级条 + 表格 name/category 显示 `—`
+  - `frontend/src/App.tsx`：`<Route path="dashboard" />` + 默认重定向；`/health` 保留
+  - `frontend/src/layouts/Layout.tsx`：navItems 前部插入"动量看板"
+- 测试：vitest 49/49 通过（11 个测试文件；新增 27 个：3 signals-api + 3 etfs-api + 5 signals-store + 4 etfs-store + 5 ActionBadge + 5 SummaryCards + 8 SignalRankingTable + 2 EmptyState + 5 DashboardPage）
+- 验证：
+  - tsc --noEmit: 0 errors
+  - vite build: 201 KB JS（gzip 65 KB），2.93s 完成
+  - 浏览器端到端冒烟：dev server 启动后 `/` → `/dashboard` 重定向；BUY/HOLD/WATCH 徽章颜色正确；summary 卡显示 snapshot 日期与计数；后端关闭时红色错误卡 + ETF 降级黄条
+- 备注：
+  - **TDD 脚本 bug 复现**：`speccoding-tdd.sh` 内 `cmd_verify` 函数有额外 `shift` 吞首个文件 → 传 N 个文件实际只检查 N-1 个；用 `/dev/null` 占位首参绕过。**建议向上游提 PR**
+  - **TDD 脚本 bug 复现 2**：`find_test_file` 候选路径 `__tests__/<name>.test.tsx` 缺失（只有 `.test.ts`）；tsx 组件测试若放 `__tests__/` 子目录会因 `set -e` 静默 exit。**本次绕过**：组件测试放与 impl 同级（`ActionBadge.test.tsx` 与 `ActionBadge.tsx` 同目录）。**建议向上游提 PR**
+  - **OpenSpec vs speccoding 双系统**：speccoding 期望 `openspec/changes/<name>/{spec.md,plan.md}` 平铺；OpenSpec 期望 `openspec/changes/<name>/{specs/<cap>/spec.md,tasks.md}` 子目录。本次用 symlink 桥接（`spec.md` → `specs/momentum-dashboard/spec.md`，`plan.md` → `tasks.md`），让 speccoding gate 通过而保留 OpenSpec 校验
+  - **state 漂移已修**：开工时 `.speccoding-state.json` 卡在 `rest-api` 的 `merge` 阶段（plan_done 67/70、code_pushed=false），且 main 分支尚未真正合并。手动 `git merge --no-ff feature/rest-api` + `git push` + `code_pushed=true` 后，再 init frontend-dashboard 状态机

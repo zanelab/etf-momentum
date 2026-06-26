@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "rest-api",
+  "active_change": "frontend-dashboard",
   "current_phase": "merge",
-  "branch": "feature/rest-api",
+  "branch": "feature/frontend-dashboard",
   "parent_branch": "main",
   "proposal_confirmed": "true",
   "design_confirmed": "true",
   "spec_created": "true",
   "plan_created": "true",
-  "plan_total": "70",
-  "plan_done": "67",
+  "plan_total": "21",
+  "plan_done": "21",
   "spec_synced": "true",
-  "code_pushed": false,
-  "created_at": "2026-06-26T09:20:25Z",
-  "updated_at": "2026-06-26T09:43:09Z"
+  "code_pushed": "true",
+  "created_at": "2026-06-26T14:13:37Z",
+  "updated_at": "2026-06-26T14:56:50Z"
 }
