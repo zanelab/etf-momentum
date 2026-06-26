@@ -32,3 +32,24 @@
   - `pnpm` 默认不批准 postinstall 脚本（esbuild），需在 package.json 加 `pnpm.onlyBuiltDependencies: ["esbuild"]`
   - `tsc -b` 在 composite 模式下会为 `vite.config.ts` 生成 `.d.ts` 与 `.js`，需加入 `.gitignore`
 
+## change: sqlite-data-model
+- 日期：2026-06-26
+- 分支：feature/sqlite-data-model
+- 阶段：proposal → brainstorming → spec → executing → archive（全部完成）
+- 实现：
+  - 4 个 SQLAlchemy 2.0 ORM model：ETF / DailyPrice / BacktestRun / SignalSnapshot
+  - 价格 `Numeric(10,4)`、成交量 `BigInteger`、JSON 字段存 etf_pool 与 metrics
+  - UNIQUE(code, date) on daily_prices；UNIQUE(date, etf_code) on signal_snapshots
+  - `app/core/config.py` 读取 `DATABASE_URL` 环境变量（默认 `sqlite:///./etf_momentum.db`）
+  - `app/db/session.py` 提供 engine / SessionLocal / `get_db`（FastAPI Depends，yield + rollback + close）
+  - `app/repositories/etf_repository.py` 演示 Repository 模式
+  - Alembic 初始迁移 8c872b9f6bda：4 张表 + 5 个索引 + 2 个 UNIQUE 约束
+  - FastAPI 端点 `GET /api/v1/etfs/count` 冒烟验证 Depends 注入
+- 测试：pytest 21/21 通过（4 health + 4 ETF + 3 DailyPrice + 1 BacktestRun + 3 Signal + 2 Session + 2 Config + 2 API）
+- 验证：alembic upgrade head 生成 etf_momentum.db，uvicorn 启动后 `/api/v1/etfs/count` 返回 `{"count":0}`
+- 备注：
+  - 测试用 `sqlite://` + StaticPool 在内存中跑，互不污染
+  - `test_get_db_rollback_on_exception` 使用 `generator.throw()` 才能把异常注入到 yield 暂停处的 generator 内部（不能直接 `next()`）
+  - 同步 SQLAlchemy 需要 `greenlet` 包以兼容某些场景
+
+

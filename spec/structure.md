@@ -3,23 +3,46 @@
 ## 架构选择
 全栈（后端 + 前端 Web）— 2026-06-26 初始化时确认
 
-## 后端实现状态（2026-06-26）
-FastAPI 脚手架已就位（change: backend-fastapi-scaffold，已归档）。
+## 后端实现状态（2026-06-26 更新）
+FastAPI 脚手架 + SQLite 数据模型已就位（change: backend-fastapi-scaffold、sqlite-data-model，已归档）。
 
 ```
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI 应用入口
+│   ├── main.py                 # FastAPI 应用入口 + lifespan 打印 DATABASE_URL
+│   ├── core/
+│   │   └── config.py           # DATABASE_URL 配置
+│   ├── db/
+│   │   ├── base.py             # SQLAlchemy DeclarativeBase
+│   │   └── session.py          # engine + SessionLocal + get_db (Depends)
+│   ├── models/                 # 4 个 ORM model
+│   │   ├── etf.py
+│   │   ├── daily_price.py
+│   │   ├── backtest_run.py
+│   │   └── signal_snapshot.py
+│   ├── repositories/
+│   │   └── etf_repository.py   # EtfRepository
 │   └── api/
-│       ├── __init__.py
 │       ├── health.py           # GET /health
 │       └── v1/
-│           ├── __init__.py
-│           └── router.py       # /api/v1 业务前缀占位
-├── tests/
-│   ├── __init__.py
-│   └── test_health.py
+│           ├── etfs.py         # GET /api/v1/etfs/count
+│           └── router.py
+├── tests/                      # 21 个 pytest 用例
+│   ├── conftest.py
+│   ├── test_health.py
+│   ├── test_etf.py
+│   ├── test_daily_price.py
+│   ├── test_backtest_run.py
+│   ├── test_signal_snapshot.py
+│   ├── test_session.py
+│   ├── test_config.py
+│   └── test_etfs_api.py
+├── alembic/                    # 迁移目录
+│   ├── env.py
+│   └── versions/8c872b9f6bda_initial_schema.py
+├── alembic.ini
+├── .env.example
 ├── pyproject.toml              # uv 依赖管理
 ├── uv.lock
 └── README.md
@@ -72,7 +95,7 @@ etf-momentum/
 │   ├── specs/                # 长期规格
 │   └── changes/
 │       └── archive/          # 已归档变更
-├── backend/                  # 后端代码（FastAPI，已脚手架）
-├── frontend/                 # 前端代码（Vite + React，已脚手架）
+├── backend/                  # 后端代码（FastAPI + SQLAlchemy + Alembic）
+├── frontend/                 # 前端代码（Vite + React + TS）
 └── AGENTS.md                 # 开发规则
 ```
