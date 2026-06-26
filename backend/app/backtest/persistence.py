@@ -1,6 +1,5 @@
 """Backtest result persistence — write BacktestRun ORM rows."""
 
-import json
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -15,6 +14,14 @@ def _decimal_to_str(v: Decimal | None) -> str | None:
     return str(v)
 
 
+def _nav_to_json(nav_series: list[tuple]) -> list[dict[str, str]]:
+    """[(date, Decimal), ...] → [{"date": "YYYY-MM-DD", "nav": "..."}]"""
+    out: list[dict[str, str]] = []
+    for d, nav in nav_series:
+        out.append({"date": d.isoformat(), "nav": str(nav)})
+    return out
+
+
 def save_backtest_run(
     session: Session,
     params: BacktestParams,
@@ -25,6 +32,9 @@ def save_backtest_run(
     The ORM has no dedicated columns for skip / top_n / initial_cash / final_nav;
     these are stored inside the `metrics` JSON column under the `params` key
     so a future reader can fully reconstruct the inputs that produced this run.
+
+    The full `nav_series` is stored in the dedicated `nav_series` JSON column
+    so the GET /backtest/{id}/nav endpoint can return it without recomputing.
     """
     final_nav = result.nav_series[-1][1] if result.nav_series else None
 
@@ -52,6 +62,7 @@ def save_backtest_run(
         start_date=params.start,
         end_date=params.end,
         metrics=metrics_payload,
+        nav_series=_nav_to_json(result.nav_series),
     )
     session.add(run)
     session.commit()

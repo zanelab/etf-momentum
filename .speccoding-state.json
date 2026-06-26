@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "realtime-signals",
+  "active_change": "rest-api",
   "current_phase": "merge",
-  "branch": "feature/realtime-signals",
+  "branch": "feature/rest-api",
   "parent_branch": "main",
   "proposal_confirmed": "true",
   "design_confirmed": "true",
   "spec_created": "true",
   "plan_created": "true",
-  "plan_total": "46",
-  "plan_done": 0,
+  "plan_total": "70",
+  "plan_done": "67",
   "spec_synced": "true",
-  "code_pushed": "true",
-  "created_at": "2026-06-26T09:02:44Z",
-  "updated_at": "2026-06-26T09:13:04Z"
+  "code_pushed": false,
+  "created_at": "2026-06-26T09:20:25Z",
+  "updated_at": "2026-06-26T09:43:09Z"
 }
