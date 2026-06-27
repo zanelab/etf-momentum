@@ -67,3 +67,34 @@ export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T>
   }
   return (await response.json()) as T;
 }
+
+export async function apiPut<T, B = unknown>(path: string, body: B): Promise<T> {
+  const response = await fetch(buildUrl(path), {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const { message, detail } = await parseError(response);
+    throw new ApiError(message, response.status, detail);
+  }
+  return (await response.json()) as T;
+}
+
+export async function apiDelete<T = void>(path: string): Promise<T> {
+  const response = await fetch(buildUrl(path), {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    const { message, detail } = await parseError(response);
+    throw new ApiError(message, response.status, detail);
+  }
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  return (await response.json()) as T;
+}

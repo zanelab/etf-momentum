@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { BacktestForm } from "@/components/backtest/BacktestForm";
 import { MetricsCards } from "@/components/backtest/MetricsCards";
@@ -6,21 +6,38 @@ import { NavChart } from "@/components/backtest/NavChart";
 import type { BacktestRequest } from "@/api/backtest";
 import { useBacktestStore } from "@/stores/backtest-store";
 import { useEtfsStore } from "@/stores/etfs-store";
+import { usePoolsStore } from "@/stores/pools-store";
 
 export function BacktestPage() {
   const etfsState = useEtfsStore();
+  const poolsState = usePoolsStore();
   const backtestState = useBacktestStore();
+  const [selectedPoolId, setSelectedPoolId] = useState<number | null>(null);
 
   useEffect(() => {
     void etfsState.fetchAll();
+    void poolsState.fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (selectedPoolId === null) return;
+    void poolsState.fetchOne(selectedPoolId);
+  }, [selectedPoolId, poolsState]);
+
   const handleSubmit = (req: BacktestRequest) => {
     void backtestState.submit(req);
+    if (req.pool_id !== null && req.pool_id !== undefined) {
+      setSelectedPoolId(req.pool_id);
+    }
   };
 
   const etfs = etfsState.data?.items ?? [];
+
+  const poolDetail =
+    poolsState.currentPool && poolsState.currentPool.id === selectedPoolId
+      ? poolsState.currentPool
+      : null;
 
   return (
     <section className="space-y-6">
@@ -35,6 +52,11 @@ export function BacktestPage() {
         etfs={etfs}
         etfsLoading={etfsState.status === "loading" || etfsState.status === "idle"}
         etfsError={etfsState.status === "error" ? etfsState.error : null}
+        pools={poolsState.items}
+        poolsLoading={poolsState.status === "loading" || poolsState.status === "idle"}
+        poolsError={poolsState.status === "error" ? poolsState.error : null}
+        poolDetail={poolDetail}
+        poolDetailLoading={poolsState.currentPoolStatus === "loading"}
         disabled={backtestState.submitStatus === "loading"}
         formErrors={backtestState.formErrors}
         onSubmit={handleSubmit}

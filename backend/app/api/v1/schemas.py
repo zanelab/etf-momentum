@@ -11,6 +11,7 @@ ALLOWED_REBALANCE_FREQ = ("monthly", "quarterly")
 from app.models.backtest_run import BacktestRun
 from app.models.daily_price import DailyPrice
 from app.models.etf import ETF
+from app.models.etf_pool import EtfPool, EtfPoolMember
 from app.models.signal_snapshot import SignalSnapshot
 
 T = TypeVar("T")
@@ -228,6 +229,109 @@ class ListResponsePydantic(BaseModel, Generic[T]):
     offset: int
 
 
+
+# ---------------------------------------------------------------------------
+# ETF Pool
+# ---------------------------------------------------------------------------
+
+
+class EtfPoolMemberPydantic(BaseModel):
+    """池成员展示（带 ETF 字典信息）。"""
+
+    code: str
+    name: str
+    market: str
+    category: str | None = None
+    position: int
+
+
+class EtfPoolSummaryPydantic(BaseModel):
+    """GET /pools 列表项（不含 members 明细，仅 member_count）。"""
+
+    id: int
+    name: str
+    description: str | None = None
+    member_count: int
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_orm(cls, pool: EtfPool) -> "EtfPoolSummaryPydantic":
+        return cls(
+            id=pool.id,
+            name=pool.name,
+            description=pool.description,
+            member_count=len(pool.members),
+            created_at=pool.created_at.isoformat() if pool.created_at else "",
+            updated_at=pool.updated_at.isoformat() if pool.updated_at else "",
+        )
+
+
+class EtfPoolDetailPydantic(BaseModel):
+    """GET /pools/{id} 详情（含 members 明细）。"""
+
+    id: int
+    name: str
+    description: str | None = None
+    members: list[EtfPoolMemberPydantic]
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_orm(
+        cls, pool: EtfPool, etf_map: dict[str, ETF]
+    ) -> "EtfPoolDetailPydantic":
+        members: list[EtfPoolMemberPydantic] = []
+        for m in pool.members:
+            etf = etf_map.get(m.etf_code)
+            members.append(
+                EtfPoolMemberPydantic(
+                    code=m.etf_code,
+                    name=etf.name if etf else "(已下线)",
+                    market=etf.market if etf else "",
+                    category=etf.category if etf else None,
+                    position=m.position,
+                )
+            )
+        return cls(
+            id=pool.id,
+            name=pool.name,
+            description=pool.description,
+            members=members,
+            created_at=pool.created_at.isoformat() if pool.created_at else "",
+            updated_at=pool.updated_at.isoformat() if pool.updated_at else "",
+        )
+
+
+class EtfPoolCreatePydantic(BaseModel):
+    """POST /pools 请求体。"""
+
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=512)
+    etf_codes: list[str] = Field(min_length=1)
+
+    @field_validator("etf_codes")
+    @classmethod
+    def _validate_codes(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("etf_codes must not be empty")
+        return v
+
+
+class EtfPoolUpdatePydantic(BaseModel):
+    """PUT /pools/{id} 请求体（整体替换）。"""
+
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=512)
+    etf_codes: list[str] = Field(min_length=1)
+
+
+class EtfPoolListPydantic(BaseModel):
+    items: list[EtfPoolSummaryPydantic]
+    total: int
+
+
+
 __all__ = [
     "ETFPydantic",
     "ETFListPydantic",
@@ -242,4 +346,10 @@ __all__ = [
     "SyncPricesRequestPydantic",
     "SyncResponsePydantic",
     "ListResponsePydantic",
-]
+    "EtfPoolMemberPydantic",
+    "EtfPoolSummaryPydantic",
+    "EtfPoolDetailPydantic",
+    "EtfPoolCreatePydantic",
+    "EtfPoolUpdatePydantic",
+    "EtfPoolListPydantic",
+]  # noqa: E501

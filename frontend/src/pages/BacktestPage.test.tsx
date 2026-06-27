@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as backtestApi from "@/api/backtest";
 import * as etfsApi from "@/api/etfs";
+import * as poolsApi from "@/api/pools";
 import { BacktestPage } from "@/pages/BacktestPage";
 import { useBacktestStore } from "@/stores/backtest-store";
 import { useEtfsStore } from "@/stores/etfs-store";
+import { usePoolsStore } from "@/stores/pools-store";
 
 const SAMPLE_RUN: backtestApi.BacktestRun = {
   id: 9,
@@ -49,7 +51,9 @@ describe("BacktestPage", () => {
   beforeEach(() => {
     useEtfsStore.getState().reset();
     useBacktestStore.getState().reset();
+    usePoolsStore.getState().reset();
     vi.restoreAllMocks();
+    vi.spyOn(poolsApi, "listPools").mockResolvedValue({ items: [], total: 0 });
   });
 
   afterEach(() => {
@@ -67,8 +71,8 @@ describe("BacktestPage", () => {
     render(<BacktestPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("pool-510300")).toBeInTheDocument();
-      expect(screen.getByTestId("pool-510500")).toBeInTheDocument();
+      expect(screen.getByTestId("backtest-picker-510300")).toBeInTheDocument();
+      expect(screen.getByTestId("backtest-picker-510500")).toBeInTheDocument();
     });
   });
 
@@ -80,10 +84,10 @@ describe("BacktestPage", () => {
     render(<BacktestPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("pool-510300")).toBeInTheDocument();
+      expect(screen.getByTestId("backtest-picker-510300")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("pool-510300"));
+    fireEvent.click(screen.getByTestId("backtest-picker-510300"));
     fireEvent.change(screen.getByTestId("field-start"), { target: { value: "2025-01-01" } });
     fireEvent.change(screen.getByTestId("field-end"), { target: { value: "2025-12-31" } });
     fireEvent.click(screen.getByTestId("submit-button"));
@@ -103,10 +107,10 @@ describe("BacktestPage", () => {
     render(<BacktestPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("pool-510300")).toBeInTheDocument();
+      expect(screen.getByTestId("backtest-picker-510300")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("pool-510300"));
+    fireEvent.click(screen.getByTestId("backtest-picker-510300"));
     fireEvent.change(screen.getByTestId("field-start"), { target: { value: "2025-01-01" } });
     fireEvent.change(screen.getByTestId("field-end"), { target: { value: "2025-12-31" } });
     fireEvent.click(screen.getByTestId("submit-button"));
