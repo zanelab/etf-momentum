@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "active_change": "readme-startup-docs",
+  "active_change": "v1.0-demo-data",
   "current_phase": "merge",
-  "branch": "feature/readme-startup-docs",
+  "branch": "feature/v1.0-demo-data",
   "parent_branch": "main",
   "proposal_confirmed": false,
   "design_confirmed": false,
@@ -12,6 +12,6 @@
   "plan_done": 0,
   "spec_synced": "true",
   "code_pushed": "true",
-  "created_at": "2026-06-27T11:59:38Z",
-  "updated_at": "2026-06-27T14:24:00Z"
+  "created_at": "2026-06-27T14:30:15Z",
+  "updated_at": "2026-06-27T15:02:38Z"
 }
