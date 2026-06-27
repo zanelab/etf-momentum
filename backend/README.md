@@ -161,6 +161,39 @@ uv run python -m app.data.signal show --date 2024-12-31
 
 CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.sync prices` 同步数据。
 
+### 演示数据灌入
+
+> ⚠️ **演示数据仅用于系统功能演示，不构成投资建议**。
+
+```bash
+# 灌入内置演示数据集（15 只 ETF × ~1079 天 + 1 个 signal snapshot + 1 个示例 pool）
+uv run python -m app.data.seed_demo
+
+# 输出示例：
+# loaded: etfs=15 daily_prices=16185 signals=15 pool=宽基三杰
+
+# 指定其他 fixture 文件
+uv run python -m app.data.seed_demo --fixture /path/to/other.json
+```
+
+**幂等**：重复执行 exit 0，DB 行数无增长（基于 upsert）。**离线可用**：不发起任何网络请求，只读本地 JSON。
+
+**演示数据集内容**：
+- 10 只宽基（沪深300/中证500/创业板/科创50/红利/上证50/深100/华夏300/上证180/深红利）
+- 5 只行业（半导体/医疗/酒/消费/黄金）
+- 时间窗口：最近 ~1079 个交易日（约 3 年），截至 fixture `generated_at` 字段
+- 1 个 signal snapshot：top-5 = BUY，其余 10 只 = HOLD
+- 1 个示例 pool「宽基三杰」：510300/510500/159915
+
+**演示数据生成器**（开发者手动工具，不入 CI / 不入容器镜像）：
+
+```bash
+# 在 backend 目录下重新拉取最新 akshare 数据生成 fixture
+uv run python -m app.data.seed_demo_generator --lookback-days 750
+```
+
+> 该命令依赖网络（akshare），且每次生成结果略有差异。仅在维护者需要刷新 fixture 时手动跑。
+
 ## 动量因子
 
 12-1 动量（classic AQR / Carhart 定义）：衡量过去 12 个月收益、跳过最近 1 个月，避免短期反转效应。
@@ -576,13 +609,17 @@ backend/
 │   │   └── signal_snapshot.py
 │   ├── repositories/
 │   │   └── etf_repository.py    # EtfRepository
-│   ├── data/                    # akshare 数据同步 + signal CLI
+│   ├── data/                    # akshare 数据同步 + signal CLI + 演示数据
 │   │   ├── client.py            # AkshareClient Protocol + AkshareHttpClient + FakeAkshareClient
 │   │   ├── upsert.py            # upsert_etf / upsert_daily_price
 │   │   ├── etf_master.py        # sync_etf_master
 │   │   ├── daily_prices.py      # sync_daily_prices
 │   │   ├── sync.py              # sync CLI 入口
-│   │   └── signal.py            # signal CLI 入口（run / show）
+│   │   ├── signal.py            # signal CLI 入口（run / show）
+│   │   ├── seed_demo.py         # 演示数据 loader CLI（灌入 demo_data.json）
+│   │   ├── seed_demo_generator.py # 演示数据 generator（开发者手动工具，不入 CI）
+│   │   └── fixtures/            # 内置演示数据
+│   │       └── demo_data.json   # akshare 一次性快照（≈2.7 MB）
 │   ├── factors/                 # 因子计算原语
 │   │   └── momentum.py          # 12-1 动量
 │   ├── backtest/                # 回测引擎
