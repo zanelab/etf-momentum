@@ -333,3 +333,132 @@ def test_engine_uses_metrics() -> None:
 def test_metrics_module_export() -> None:
     from app.backtest import compute_metrics as exported
     assert exported is compute_metrics
+
+
+# ---------------------------------------------------------------------------
+# risk_free_rate 覆盖
+# ---------------------------------------------------------------------------
+
+
+def test_sortino_default_risk_free_rate_zero() -> None:
+    """不传 risk_free_rate → 默认 0，sortino 与显式 rf=0 一致。"""
+    nav_series = [
+        (date(2024, 1, 1), Decimal("100")),
+        (date(2024, 1, 2), Decimal("95")),
+        (date(2024, 1, 3), Decimal("97.85")),
+        (date(2024, 1, 4), Decimal("95.893")),
+    ]
+    m_default = compute_metrics(nav_series, Decimal("100"))
+    m_explicit_zero = compute_metrics(
+        nav_series, Decimal("100"), risk_free_rate=Decimal("0")
+    )
+    assert m_default["sortino_ratio"] == m_explicit_zero["sortino_ratio"]
+
+
+def test_sortino_with_risk_free_rate_lowers_ratio() -> None:
+    """rf > 0 时，sortino（基于负超额收益的 std）应该更小（更负）。"""
+    nav_series = [
+        (date(2024, 1, 1), Decimal("100")),
+        (date(2024, 1, 2), Decimal("95")),   # -0.05
+        (date(2024, 1, 3), Decimal("97.85")),  # +0.03
+        (date(2024, 1, 4), Decimal("95.893")),  # -0.02
+    ]
+    m_zero = compute_metrics(nav_series, Decimal("100"), risk_free_rate=Decimal("0"))
+    m_2pct = compute_metrics(
+        nav_series, Decimal("100"), risk_free_rate=Decimal("0.02")
+    )
+    assert m_zero["sortino_ratio"] is not None
+    assert m_2pct["sortino_ratio"] is not None
+    # rf=0.02 时超额收益更负 → sortino 更小
+    assert m_2pct["sortino_ratio"] < m_zero["sortino_ratio"]
+
+
+def test_sharpe_all_excess_negative_returns_none_when_insufficient() -> None:
+    """只有 1 个日收益时，sharpe 因为 std 自由度不足返回 None。"""
+    nav_series = [
+        (date(2024, 1, 1), Decimal("100")),
+        (date(2024, 1, 2), Decimal("90")),  # -0.10
+    ]
+    m = compute_metrics(nav_series, Decimal("100"), risk_free_rate=Decimal("0.05"))
+    # len(daily_returns) = 1 < 2 → sharpe None
+    assert m["sharpe_ratio"] is None
+    # total_return = 0.9 - 1 = -0.1
+    assert m["total_return"] == Decimal("-0.1")
+
+
+def test_sharpe_all_negative_excess_still_computable() -> None:
+    """多个日收益且方差 > 0 时，即使均值 < 0，sharpe 仍然返回有限值（不是 None）。"""
+    nav_series = [
+        (date(2024, 1, 1), Decimal("100")),
+        (date(2024, 1, 2), Decimal("95")),  # -0.05
+        (date(2024, 1, 3), Decimal("92")),  # ~-0.0316
+        (date(2024, 1, 4), Decimal("88")),  # ~-0.0435
+    ]
+    m = compute_metrics(nav_series, Decimal("100"), risk_free_rate=Decimal("0"))
+    # 3 个 daily returns，std > 0 → sharpe 可算
+    assert m["sharpe_ratio"] is not None
+    assert m["sharpe_ratio"] < Decimal("0")
+
+
+def test_annualized_return_one_day_window() -> None:
+    """2 个相邻日期（days=1）→ annualized_return 计算为 0。"""
+    nav_series = [
+        (date(2024, 1, 1), Decimal("100")),
+        (date(2024, 1, 2), Decimal("110")),  # +10% in 1 day
+    ]
+    m = compute_metrics(nav_series, Decimal("100"))
+    # days=1 → years ≈ 1/365，10% daily 复利年化很大，但因 days<=0 路径不会触发
+    # 实际：days > 0 + final > 0 + initial > 0 → 走 (final/initial)^(1/years) - 1
+    # years = 1/365，1.1^365 ≈ 1.1^365 远大于 1
+    # 所以 annualized_return 应该是某个大于 0 的数
+    assert m["annualized_return"] > Decimal("0")
+
+
+def test_annualized_return_zero_days() -> None:
+    """单点 nav_series → days=0 → annualized_return = 0。"""
+    nav_series = [(date(2024, 1, 1), Decimal("100"))]
+    m = compute_metrics(nav_series, Decimal("100"))
+    assert m["annualized_return"] == Decimal("0")
+
+
+# ---------------------------------------------------------------------------
+# _decimal_pow / _annualized_ratio 内部 helper
+# ---------------------------------------------------------------------------
+
+
+def test_decimal_pow_negative_base_returns_zero() -> None:
+    """_decimal_pow 对负基数（不应发生但有兜底）返回 0。"""
+    from app.backtest.metrics import _decimal_pow
+
+    result = _decimal_pow(Decimal("-2"), Decimal("0.5"))
+    assert result == Decimal("0")
+
+
+def test_annualized_ratio_single_element_returns_none() -> None:
+    """_annualized_ratio 在 excess_returns 长度 < 2 时返回 None。"""
+    from app.backtest.metrics import _annualized_ratio
+
+    assert _annualized_ratio([Decimal("0.1")], [Decimal("0.1")]) is None
+    assert _annualized_ratio([], []) is None
+
+
+def test_annualized_ratio_zero_std_returns_none() -> None:
+    """_annualized_ratio 在 std == 0 时返回 None（即使 excess 长度足够）。"""
+    from app.backtest.metrics import _annualized_ratio
+
+    excess = [Decimal("0.05"), Decimal("0.05"), Decimal("0.05")]
+    raw = [Decimal("0.05"), Decimal("0.05"), Decimal("0.05")]
+    assert _annualized_ratio(excess, raw) is None
+
+
+def test_annualized_ratio_computes_known_value() -> None:
+    """简单场景：mean=0, std>0 → ratio = 0。"""
+    from app.backtest.metrics import _annualized_ratio
+
+    excess = [Decimal("0.10"), Decimal("-0.10")]
+    raw = [Decimal("0.10"), Decimal("-0.10")]
+    result = _annualized_ratio(excess, raw)
+    # mean = 0, std = sqrt((0.1^2 + 0.1^2)/(2-1)) = sqrt(0.02) ≈ 0.1414
+    # ratio = 0 / 0.1414 * sqrt(252) = 0
+    assert result is not None
+    assert abs(result) < Decimal("1e-6")

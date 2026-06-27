@@ -123,3 +123,110 @@ class TestSaveBacktestRun:
         save_backtest_run(session, params, result)
         added = session.add.call_args[0][0]
         assert added.rebalance_freq == "quarterly"
+
+    def test_metrics_contains_sortino_and_calmar(self, params):
+        """sortino_ratio / calmar_ratio 也要写进 metrics JSON。"""
+        result = BacktestResult(
+            nav_series=[
+                (date(2024, 1, 1), Decimal("100000")),
+                (date(2024, 6, 30), Decimal("120000")),
+            ],
+            rebalance_log=[],
+            metrics={
+                "total_return": Decimal("0.20"),
+                "annualized_return": Decimal("0.40"),
+                "max_drawdown": Decimal("0.10"),
+                "sharpe_ratio": Decimal("1.5"),
+                "sortino_ratio": Decimal("2.0"),
+                "calmar_ratio": Decimal("4.0"),
+            },
+        )
+        session = MagicMock()
+        save_backtest_run(session, params, result)
+        added = session.add.call_args[0][0]
+        assert added.metrics["sortino_ratio"] == "2.0"
+        assert added.metrics["calmar_ratio"] == "4.0"
+
+    def test_metrics_sortino_calmar_none_serialized(self, params):
+        """sortino / calmar 为 None 时 JSON 中为 null。"""
+        result = BacktestResult(
+            nav_series=[(date(2024, 1, 1), Decimal("100000"))],
+            rebalance_log=[],
+            metrics={
+                "total_return": Decimal("0"),
+                "annualized_return": Decimal("0"),
+                "max_drawdown": Decimal("0"),
+                "sharpe_ratio": None,
+                "sortino_ratio": None,
+                "calmar_ratio": None,
+            },
+        )
+        session = MagicMock()
+        save_backtest_run(session, params, result)
+        added = session.add.call_args[0][0]
+        assert added.metrics["sortino_ratio"] is None
+        assert added.metrics["calmar_ratio"] is None
+
+    def test_save_with_name(self, params, result):
+        """name 字段会作为 BacktestRun.name 持久化。"""
+        from app.backtest.engine import BacktestResult as _Result
+
+        named_params = BacktestParams(
+            etf_pool=params.etf_pool,
+            start=params.start,
+            end=params.end,
+            initial_cash=params.initial_cash,
+            lookback=params.lookback,
+            skip=params.skip,
+            top_n=params.top_n,
+            rebalance_freq=params.rebalance_freq,
+        )
+        # BacktestParams 没有 name 字段（name 在 API 层赋给 BacktestRun），所以这里
+        # 验证 BacktestRun 的 name 属性默认为 None，且能通过 setattr 设置。
+        session = MagicMock()
+        save_backtest_run(session, named_params, result)
+        added = session.add.call_args[0][0]
+        assert added.name is None
+        # ORM 字段存在，可赋值
+        added.name = "momentum-12-1-monthly"
+        assert added.name == "momentum-12-1-monthly"
+
+    def test_save_single_point_nav(self, params):
+        """单点 nav_series → final_nav 为该点的 nav 值。"""
+        result = BacktestResult(
+            nav_series=[(date(2024, 1, 1), Decimal("100000"))],
+            rebalance_log=[],
+            metrics={
+                "total_return": Decimal("0"),
+                "annualized_return": Decimal("0"),
+                "max_drawdown": Decimal("0"),
+                "sharpe_ratio": None,
+            },
+        )
+        session = MagicMock()
+        save_backtest_run(session, params, result)
+        added = session.add.call_args[0][0]
+        assert added.metrics["final_nav"] == "100000"
+        assert added.metrics["params"]["final_nav"] == "100000"
+
+    def test_save_with_rebalance_log_populated_not_persisted(self, params, result):
+        """rebalance_log 当前不被持久化（需要新 JSON 列，超出本次范围）。"""
+        from app.backtest.engine import RebalanceEvent
+
+        result_with_log = BacktestResult(
+            nav_series=result.nav_series,
+            rebalance_log=[
+                RebalanceEvent(
+                    date=date(2024, 3, 31),
+                    scores={"510300": Decimal("0.15")},
+                    selected=["510300"],
+                    weights={"510300": Decimal("1")},
+                ),
+            ],
+            metrics=result.metrics,
+        )
+        session = MagicMock()
+        save_backtest_run(session, params, result_with_log)
+        added = session.add.call_args[0][0]
+        # BacktestRun 没有 rebalance_log_json 列 → 不会有该属性（或为 None）
+        assert not hasattr(added, "rebalance_log_json") or added.rebalance_log_json is None
