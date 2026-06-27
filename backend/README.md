@@ -1,25 +1,43 @@
 # etf-momentum Backend
 
-A 股 ETF 动量策略系统的后端服务。基于 FastAPI + SQLAlchemy 2.0 + Alembic，使用 `uv` 管理依赖。
+A 股 ETF 动量策略系统的后端服务。基于 FastAPI + SQLAlchemy 2.0 + Alembic，使用 `uv` 管理依赖，akshare 同步行情数据。
+
+## 目录
+
+- [项目简介](#项目简介)
+- [环境要求](#环境要求)
+- [安装](#安装)
+- [数据库配置](#数据库配置)
+- [数据库迁移](#数据库迁移)
+- [启动开发服务器](#启动开发服务器)
+- [运行测试](#运行测试)
+- [数据模型](#数据模型)
+- [CLI 命令](#cli-命令)
+- [动量因子](#动量因子)
+- [回测引擎](#回测引擎)
+- [业绩指标](#业绩指标)
+- [实时信号](#实时信号)
+- [REST API](#rest-api)
+- [Docker](#docker)
+- [项目结构](#项目结构)
+- [后续计划](#后续计划)
 
 ## 项目简介
 
-本目录是 etf-momentum 项目的后端实现。当前阶段提供：
+v1.0 已交付的全部后端能力：
 
-- FastAPI 应用入口（`app/main.py`）
-- 健康检查端点 `GET /health`
-- 业务路由前缀 `/api/v1`：12 个 REST 端点（etfs / signals / backtest / sync）+ CORS
-- SQLite 数据层：4 个核心实体（ETF / DailyPrice / BacktestRun / SignalSnapshot）
-- Alembic 数据库迁移
-- Repository 模式（`EtfRepository`）演示查询封装
-- Session 通过 FastAPI `Depends(get_db)` 注入
-- akshare 数据同步（CLI：`python -m app.data.sync`）
-- 动量因子计算原语（`app/factors/momentum`）—— 12-1 动量纯函数模块
-- 回测引擎（`app/backtest`）—— 纯函数 `run_backtest` + 持久化 `save_backtest_run`
-- 实时信号计算 + 持久化 + CLI（`app/signals/` + `app/data/signal`）
-- 自动化测试覆盖（`pytest` + 内存 SQLite）
-
-后续将提供前端 Dashboard / Backtest UI / ETF 池管理。
+- **FastAPI 应用入口**（`app/main.py`）+ CORS
+- **健康检查端点** `GET /health`
+- **18 个 REST 端点**（`/api/v1` 前缀）：etfs / pools / signals / backtest / sync 五大模块 + CORS
+- **SQLite 数据层**：4 个核心实体（ETF / DailyPrice / BacktestRun / SignalSnapshot）
+- **Alembic 数据库迁移**（3 个版本：initial / nullable score+rank / nav series）
+- **Repository 模式**（`EtfRepository`）封装查询
+- **Session 注入**：FastAPI `Depends(get_db)`
+- **akshare 数据同步**：CLI `python -m app.data.sync`（Protocol 抽象 + HTTP / Fake 双实现）
+- **动量因子原语**（`app/factors/momentum`）：12-1 动量纯函数模块
+- **回测引擎**（`app/backtest/`）：纯函数 `run_backtest` + 6 指标 `compute_metrics` + 持久化 `save_backtest_run`
+- **实时信号**（`app/signals/` + `app/data/signal.py`）：BUY/HOLD/WATCH 三态 + CLI 落库
+- **267 个 pytest 单元/集成测试**（内存 SQLite，无外部依赖）
 
 ## 环境要求
 
@@ -41,6 +59,8 @@ uv sync --extra dev
 ```bash
 export DATABASE_URL=sqlite:///./etf_momentum.db
 ```
+
+Docker 部署时使用 named volume 持久化（路径 `/app/data/etf_momentum.db`），详见根 `README.md`。
 
 ## 数据库迁移
 
@@ -74,10 +94,18 @@ uv run uvicorn app.main:app --reload --port 8000
 ## 运行测试
 
 ```bash
+# 全部测试
 uv run pytest
+
+# 收集测试数（用于文档自检）
+uv run pytest --collect-only -q | tail -1
+
+# 单文件 / 单用例
+uv run pytest tests/test_engine.py -v
+uv run pytest -k "TestValidateParams" -v
 ```
 
-测试使用内存 SQLite（`sqlite:///:memory:` + StaticPool），不依赖真实数据库文件。
+测试使用内存 SQLite（`sqlite:///:memory:` + StaticPool），不依赖真实数据库文件。**截至 v1.0 共 267 个测试**（以 `pytest --collect-only -q` 当前输出为准）。
 
 ## 数据模型
 
@@ -85,14 +113,16 @@ uv run pytest
 |---|---|
 | `etfs` | ETF 主数据（code, name, market, category） |
 | `daily_prices` | 日线 OHLCV 行情（UNIQUE(code, date)） |
-| `backtest_runs` | 回测运行记录（参数 + 业绩 JSON + NAV 序列 JSON） |
-| `signal_snapshots` | 每日动量信号（UNIQUE(date, etf_code)） |
+| `backtest_runs` | 回测运行记录（参数 + 业绩 JSON + NAV 序列 JSON，含 sortino/calmar） |
+| `signal_snapshots` | 每日动量信号（UNIQUE(date, etf_code)，score/rank 可空） |
 
 价格字段使用 `Numeric(10, 4)`，避免浮点误差；成交量使用 `BigInteger`。
 
-## 数据同步（akshare）
+## CLI 命令
 
-CLI 入口：`python -m app.data.sync`
+后端提供 2 组 CLI：数据同步 + 信号计算。所有命令通过 `uv run python -m app.<module> ...` 调用。
+
+### 数据同步（akshare）
 
 ```bash
 # 同步全市场 ETF 主数据到 etfs 表
@@ -103,7 +133,7 @@ uv run python -m app.data.sync prices --codes 510300,510500
 
 # 显式指定日期区间
 uv run python -m app.data.sync prices --codes 510300 \
-  --start 2024-01-01 --end 2024-12-31
+    --start 2024-01-01 --end 2024-12-31
 
 # 全量拉取（从 akshare 起点 2000-01-01 到今天）
 uv run python -m app.data.sync prices --codes 510300 --full
@@ -112,6 +142,24 @@ uv run python -m app.data.sync prices --codes 510300 --full
 实现采用 Protocol 抽象（`AkshareClient`），sync 函数只依赖接口。运行时注入 `AkshareHttpClient`，测试注入 `FakeAkshareClient`，无需网络。
 
 Upsert 通过 SQLite `INSERT ... ON CONFLICT DO UPDATE` 实现，重复运行同步相同区间不会抛错。CLI 退出码：0 全部成功 / 1 部分失败 / 2 全部失败。
+
+### 信号计算
+
+```bash
+# 计算并落库
+uv run python -m app.data.signal run --date 2024-12-31 --pool 510300,510500,510880
+
+# 指定 top-N
+uv run python -m app.data.signal run --date 2024-12-31 --pool 510300,510500 --top-n 2
+
+# 覆盖已存在的快照
+uv run python -m app.data.signal run --date 2024-12-31 --pool 510300 --force
+
+# 查询
+uv run python -m app.data.signal show --date 2024-12-31
+```
+
+CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.sync prices` 同步数据。
 
 ## 动量因子
 
@@ -171,7 +219,6 @@ ranked = rank_scores(scores)
 | None 分数 | 保留在列表末尾，`rank=None`，不占名次槽 | UI 一目了然哪些 ETF 无数据；调用方遍历友好 |
 | Decimal 精度 | **不 quantize**，保留完整精度 | 调用方在写入 DB 时再 `quantize(Decimal('0.0001'))` |
 | 异常价格 | `close <= 0` 视为脏数据 → 返回 None | 与数据不足同等处理，纯函数不抛异常中断批量计算 |
-| 范围 | **不写** `signal_snapshots` | 持久化由后续「实时信号计算与排名」change 负责 |
 | 范围 | 仅做动量单因子 | 多因子合成、行业中性化等不在本模块范围 |
 
 ## 回测引擎
@@ -182,8 +229,9 @@ ranked = rank_scores(scores)
 
 ```
 app/backtest/
-├── __init__.py             # re-export BacktestParams / run_backtest / save_backtest_run
+├── __init__.py             # re-export BacktestParams / run_backtest / save_backtest_run / compute_metrics
 ├── engine.py               # 纯计算：run_backtest + BacktestParams + RebalanceEvent + BacktestResult
+├── metrics.py              # 纯计算：compute_metrics（6 个指标）
 └── persistence.py          # save_backtest_run：写 BacktestRun ORM 行
 ```
 
@@ -233,23 +281,13 @@ params = BacktestParams(
 result = run_backtest(params, price_history)
 print(result.metrics)
 # → {'total_return': Decimal('0.20'), 'annualized_return': Decimal('0.20'),
-#    'max_drawdown': Decimal('0.05'), 'sharpe_ratio': Decimal('1.5')}
+#    'max_drawdown': Decimal('0.05'), 'sharpe_ratio': Decimal('1.5'),
+#    'sortino_ratio': Decimal('2.1'), 'calmar_ratio': Decimal('4.0')}
 
-# 4) 持久化
+# 4) 持久化（metrics 中 sortino/calmar 一并写入）
 with SessionLocal() as session:
     run = save_backtest_run(session, params, result)
 ```
-
-### 业绩指标公式
-
-| 指标 | 公式 |
-|------|------|
-| `total_return` | `(final_nav / initial_cash) - 1` |
-| `annualized_return` | `(final_nav / initial_cash) ** (365 / days) - 1` |
-| `max_drawdown` | `max over t of (peak(t) / nav(t) - 1)`；`peak(t) = max(nav[0..t])` |
-| `sharpe_ratio` | `mean(daily_returns) / std(daily_returns) * sqrt(252)`（无风险利率 = 0）；std = 0 时为 `None` |
-
-> 完整的 6 个指标（含 Sortino / Calmar）已抽出到独立模块 `app/backtest/metrics.py`，详见下文「业绩指标」章节。
 
 ### 设计决策
 
@@ -265,7 +303,7 @@ with SessionLocal() as session:
 
 ## 业绩指标
 
-`app.backtest.metrics.compute_metrics` 是纯函数，接收净值序列返回 6 个业绩指标。可独立 import（不依赖 engine / DB），便于实时信号模块未来复用。
+`app.backtest.metrics.compute_metrics` 是纯函数，接收净值序列返回 6 个业绩指标。可独立 import（不依赖 engine / DB）。
 
 ### 6 个指标
 
@@ -387,24 +425,6 @@ finally:
     session.close()
 ```
 
-### CLI
-
-```bash
-# 计算并落库
-python -m app.data.signal run --date 2024-12-31 --pool 510300,510500,510880
-
-# 指定 top-N
-python -m app.data.signal run --date 2024-12-31 --pool 510300,510500 --top-n 2
-
-# 覆盖已存在的快照
-python -m app.data.signal run --date 2024-12-31 --pool 510300 --force
-
-# 查询
-python -m app.data.signal show --date 2024-12-31
-```
-
-CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.sync prices` 同步数据。
-
 ### 边界行为速查
 
 | 输入 | 行为 |
@@ -418,24 +438,30 @@ CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.syn
 
 ## REST API
 
-`app/api/v1/` 暴露 4 个 router，共 12 个端点（外加 `/health`）。OpenAPI 文档自动生成在 `/docs`（Swagger UI）和 `/redoc`（ReDoc）。
+`app/api/v1/` 暴露 5 个 router，共 17 个业务端点（外加 `/health` = 18 总数）。**完整 schema 与请求/响应示例以 Swagger UI（`http://localhost:8000/docs`）为准**——本表为速查。
 
-### 端点表
+### 端点速查表（17 业务端点 + 1 health = 18 总）
 
 | 方法 | 路径 | 用途 | 关键参数 |
 |------|------|------|---------|
+| GET | `/health` | 健康检查 | — |
 | GET | `/api/v1/etfs` | ETF 列表（分页 + category 过滤） | `?limit=50&offset=0&category=...` |
+| GET | `/api/v1/etfs/count` | ETF 总数（冒烟） | — |
 | GET | `/api/v1/etfs/{code}` | ETF 详情 | — |
 | GET | `/api/v1/etfs/{code}/prices` | 日线历史（升序） | `?start=YYYY-MM-DD&end=YYYY-MM-DD&limit=500` |
-| GET | `/api/v1/etfs/count` | ETF 总数（冒烟） | — |
+| GET | `/api/v1/pools` | ETF 策略池列表 | — |
+| POST | `/api/v1/pools` | 创建策略池 | body: `{name, etf_codes: [...]}` |
+| GET | `/api/v1/pools/{pool_id}` | 策略池详情 | — |
+| PUT | `/api/v1/pools/{pool_id}` | 更新策略池 | body: `{name?, etf_codes?}` |
+| DELETE | `/api/v1/pools/{pool_id}` | 删除策略池 | — |
 | GET | `/api/v1/signals?date=...` | 指定日期 snapshot | 不传 date → 最新 |
 | GET | `/api/v1/signals/latest` | 显式 latest | — |
 | POST | `/api/v1/backtest` | 提交新回测（同步执行） | body: `{etf_pool, start, end, initial_cash, ...}` |
 | GET | `/api/v1/backtest` | BacktestRun 列表（按 created_at desc） | `?limit=20&offset=0` |
-| GET | `/api/v1/backtest/{id}` | BacktestRun 详情（含 metrics） | — |
-| GET | `/api/v1/backtest/{id}/nav` | NAV 序列 | — |
-| POST | `/api/v1/sync/etfs` | 同步 ETF 主数据 | — |
-| POST | `/api/v1/sync/prices` | 同步日线 | body: `{codes, start?, end?, full?}` |
+| GET | `/api/v1/backtest/{run_id}` | BacktestRun 详情（含 metrics） | — |
+| GET | `/api/v1/backtest/{run_id}/nav` | NAV 序列 | — |
+| POST | `/api/v1/sync/etfs` | 触发 ETF 主数据同步 | — |
+| POST | `/api/v1/sync/prices` | 触发日线同步 | body: `{codes, start?, end?, full?}` |
 
 ### 关键约定
 
@@ -446,7 +472,7 @@ CLI 内部从 `daily_prices` 表读历史，需要先用 `python -m app.data.syn
 | 错误格式 | FastAPI 默认 `{detail: "..."}`；404 / 422 自动产生 |
 | CORS | `allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]`（Vite dev） |
 | 日期格式 | ISO 8601 `YYYY-MM-DD` / `YYYY-MM-DDTHH:MM:SS+00:00` |
-| 写操作 | 仅 `POST /backtest` 与 `POST /sync/*`；其余只读 |
+| 写操作 | `POST /backtest`、`POST /sync/*`、`POST/PUT/DELETE /pools`；其余只读 |
 
 ### curl 示例
 
@@ -456,23 +482,28 @@ curl -s "http://localhost:8000/api/v1/etfs?limit=10" | jq .
 
 # 2) 提交一次回测（同步执行 → 返回完整 BacktestRun JSON）
 curl -s -X POST http://localhost:8000/api/v1/backtest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "etf_pool": ["510300", "510500", "511010"],
-    "start": "2024-04-01",
-    "end": "2024-09-30",
-    "initial_cash": "100000",
-    "lookback": 60,
-    "skip": 5,
-    "top_n": 2,
-    "rebalance_freq": "monthly"
-  }' | jq .
+    -H "Content-Type: application/json" \
+    -d '{
+      "etf_pool": ["510300", "510500", "511010"],
+      "start": "2024-04-01",
+      "end": "2024-09-30",
+      "initial_cash": "100000",
+      "lookback": 60,
+      "skip": 5,
+      "top_n": 2,
+      "rebalance_freq": "monthly"
+    }' | jq .
 
 # 3) 拿最新信号
 curl -s "http://localhost:8000/api/v1/signals/latest" | jq .
 
 # 4) 同步 ETF 主数据
 curl -s -X POST http://localhost:8000/api/v1/sync/etfs | jq .
+
+# 5) 创建策略池
+curl -s -X POST http://localhost:8000/api/v1/pools \
+    -H "Content-Type: application/json" \
+    -d '{"name":"宽基三杰","etf_codes":["510300","510500","159915"]}' | jq .
 ```
 
 ### 错误格式
@@ -499,37 +530,6 @@ FastAPI 默认错误响应：
 { "detail": "insufficient price history for: ['511010']. POST /api/v1/sync/prices first." }
 ```
 
-### 启动与验证
-
-```bash
-# 1. 应用迁移
-uv run alembic upgrade head
-
-# 2. 启动服务
-uv run uvicorn app.main:app --reload --port 8000
-
-# 3. 浏览器打开
-#    http://localhost:8000/docs      → Swagger UI
-#    http://localhost:8000/redoc     → ReDoc
-#    http://localhost:8000/openapi.json → OpenAPI 3.0 schema
-
-# 4. 端到端冒烟
-curl -s http://localhost:8000/api/v1/etfs/count
-curl -s "http://localhost:8000/api/v1/etfs?limit=5"
-```
-
-### 模块结构
-
-```
-app/api/v1/
-├── router.py            # 聚合 4 个 router
-├── schemas.py           # Pydantic 请求/响应模型
-├── etfs.py              # /etfs 4 个端点
-├── signals.py           # /signals 2 个端点
-├── backtest.py          # /backtest 4 个端点
-└── sync.py              # /sync 2 个端点
-```
-
 ### 设计决策
 
 | 决策 | 行为 | 说明 |
@@ -540,8 +540,8 @@ app/api/v1/
 | Decimal | 序列化为 `string` | 金融保精度；前端 `parseFloat` 后 `toFixed` 还原 |
 | CORS | `localhost:5173` + `127.0.0.1:5173` | 满足本地 dev + Docker compose |
 | 错误格式 | FastAPI 默认 `{detail: ...}` | 0 额外实现；OpenAPI 原生支持 |
-| 写操作 | 仅 `POST /backtest` 与 `POST /sync/*` | ETF 数据由 akshare 同步，API 不提供增删改 |
-| 复用 | router 直接调 `app.backtest` / `app.data` | 不重新实现业务逻辑 |
+| 写操作 | `/backtest` `/sync/*` `/pools` POST/PUT/DELETE | ETF 数据由 akshare 同步，API 不提供 etfs 增删改 |
+| 复用 | router 直接调 `app.backtest` / `app.signals` / `app.data` | 不重新实现业务逻辑 |
 | 测试 | FastAPI `TestClient` + 内存 SQLite | 端到端 HTTP 行为验证 |
 
 ## Docker
@@ -557,6 +557,7 @@ app/api/v1/
 # 在 backend 容器内运行
 docker compose exec backend uv run python -m app.data.sync etfs
 docker compose exec backend uv run python -m app.data.sync prices --codes 510300
+docker compose exec backend uv run python -m app.data.signal run --date 2024-12-31 --pool 510300
 ```
 
 ## 项目结构
@@ -575,28 +576,36 @@ backend/
 │   │   └── signal_snapshot.py
 │   ├── repositories/
 │   │   └── etf_repository.py    # EtfRepository
-│   ├── data/                    # akshare 数据同步
+│   ├── data/                    # akshare 数据同步 + signal CLI
 │   │   ├── client.py            # AkshareClient Protocol + AkshareHttpClient + FakeAkshareClient
 │   │   ├── upsert.py            # upsert_etf / upsert_daily_price
 │   │   ├── etf_master.py        # sync_etf_master
 │   │   ├── daily_prices.py      # sync_daily_prices
-│   │   └── sync.py              # CLI 入口
+│   │   ├── sync.py              # sync CLI 入口
+│   │   └── signal.py            # signal CLI 入口（run / show）
 │   ├── factors/                 # 因子计算原语
 │   │   └── momentum.py          # 12-1 动量
 │   ├── backtest/                # 回测引擎
 │   │   ├── engine.py            # run_backtest + BacktestParams + BacktestResult
-│   │   └── persistence.py       # save_backtest_run
+│   │   ├── metrics.py           # 6 指标 compute_metrics
+│   │   └── persistence.py       # save_backtest_run（含 sortino/calmar 写入）
+│   ├── signals/                 # 实时信号计算 + 持久化
+│   │   ├── compute.py           # compute_signals + SignalRow
+│   │   └── persistence.py       # save_signal_snapshot
 │   ├── api/
-│   │   ├── health.py
+│   │   ├── health.py            # GET /health
 │   │   └── v1/
-│   │       ├── router.py
+│   │       ├── router.py        # 聚合 5 个 router
 │   │       ├── schemas.py       # Pydantic 请求/响应模型
 │   │       ├── etfs.py          # /api/v1/etfs 4 个端点
+│   │       ├── pools.py         # /api/v1/pools 5 个端点
 │   │       ├── signals.py       # /api/v1/signals 2 个端点
 │   │       ├── backtest.py      # /api/v1/backtest 4 个端点
 │   │       └── sync.py          # /api/v1/sync 2 个端点
-│   └── main.py
-├── tests/                       # 200 个测试覆盖（21 数据模型 + 20 akshare sync + 27 动量因子 + 24 回测引擎 + 6 持久化 + 21 业绩指标 + 15 实时信号 compute + 7 实时信号 persistence + 6 实时信号 CLI + 15 schema + 11 etfs + 7 signals + 12 backtest + 6 sync + 3 CORS）
+│   └── main.py                  # FastAPI app + CORS + router 挂载
+├── tests/                       # 267 个 pytest 测试
+│   ├── conftest.py              # 共享 fixtures
+│   ├── test_*.py                # 17 个测试文件
 ├── alembic/                     # 迁移
 │   ├── env.py
 │   ├── versions/8c872b9f6bda_initial_schema.py
@@ -607,10 +616,17 @@ backend/
 └── README.md
 ```
 
+**测试覆盖**：截至 v1.0 共 **267 个测试**（含动量 / 回测 / 指标 / 信号 / REST API / CLI / Schema / CORS）。自检命令：`uv run pytest --collect-only -q | tail -1`。
+
 ## 后续计划
 
-- 前端 Dashboard：动量排名 + 调仓建议
-- 前端 Backtest UI：参数选择 + 业绩图表
-- 前端 ETF 池管理
-- 鉴权 / 多用户
-- 任务调度（每日数据更新）
+> v1.0 范围已全部交付（参见根 `README.md` 里程碑章节）。本节仅列 v2.0+ 占位项。
+
+- **v2.0**：
+  - 多策略对比（双动量、相对动量、行业中性化）
+  - 美股 ETF 扩展（数据源候选：yfinance / polygon）
+  - 用户账户与策略持久化（多用户）
+  - 实时告警（邮件 / 微信）
+  - 任务调度（每日数据自动同步，可选 APScheduler）
+  - 实盘交易接入（券商 API）
+  - 摩擦建模（手续费 / 滑点 / 印花税 / 分红再投资）
