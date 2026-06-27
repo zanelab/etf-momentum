@@ -22,7 +22,7 @@
 - [x] 前端 ETF 池管理 *(2026-06-27 完成，change: frontend-etf-pool-management)*
 
 ### 阶段 4：质量与交付
-- [ ] 后端单元测试（回测引擎、动量计算）
+- [x] 后端单元测试（回测引擎、动量计算）*(2026-06-27 完成，change: backend-unit-tests-backtest-momentum；目标文件 78 → 130 测试)*
 - [ ] 前端组件测试
 - [ ] README + 启动文档
 - [ ] v1.0 演示数据预置

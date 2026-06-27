@@ -299,3 +299,26 @@
   - **PoolEditor useEffect 死循环**：第一版用 `useEffect([initialCodes])` 在编辑态同步 state，结果触发无限重渲染导致 vitest 整体挂起。改用父级 `key={pool.id}` remount 模式规避；语义更干净（每次切池都重置编辑器 state）
   - **mode 切换确认语义**：初版"切换 → 清空自定义"被 task 9.7 否定（"之前自定义勾选恢复"），改为"切换 → 弹 confirm 让用户决定是否清空"——最终实现是"确认后保留自定义选择，仅提示将忽略当前选择"。如有强需求要恢复原始选择，应改为"两个独立 state 分轨"
   - **Apidog 风格 vs 中文 message**：后端 409/422 错误信息直接返回中文（`Pool '宽基核心' already exists` / `Unknown ETF codes: ['999999']`），store 通过 `deriveFieldFromMessage` 把字符串消息按关键字映射到 name/etf_codes 字段。简单但脆弱——若消息英文风格改变会失效；更好的方案是后端返回结构化 `{field, code}` 而非纯字符串
+
+## change: backend-unit-tests-backtest-momentum
+- 日期：2026-06-27
+- 分支：feature/backend-unit-tests-backtest-momentum
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 范围：仅 backend 测试 + persistence.py 2 行（补全 sortino/calmar 持久化）
+- 测试改动：
+  - `backend/tests/test_engine_validation.py`（新文件，15 测试）：7 个 ValueError 分支各 1-2 用例 + 边界（end==start, skip==0）+ 错误信息断言（`missing` 列出所有缺失 codes）
+  - `backend/tests/test_backtest_engine.py`（+13 测试，`TestEngineEdgeCases`）：空日历、全 top-N 零收盘、全 None 分数、跨年 Dec 调仓（2023-12-29）、单日窗口、调仓/非调仓、weight 不变量 1/2/3/5、单 ETF weight=1、delist-on-day-1、sell-then-rebuy NAV 连续、`_build_calendar` filter / union、`_find_rebalance_dates` 空日历
+  - `backend/tests/test_backtest_metrics.py`（+10 测试）：sortino+rf、sharpe 全负超额仍可算、sharpe 单 return None、days=1 年化、_decimal_pow 负基数、_annualized_ratio 单元素/零 std/已知值
+  - `backend/tests/test_backtest_persistence.py`（+5 测试）：sortino/calmar 序列化（Decimal + None）、name 字段、单点 nav、rebalance_log 缺位的 negative assertion
+  - `backend/tests/test_momentum.py`（+9 测试）：lookback=0、skip=0、batch override 传播、大价格精度、recent 位置混 float/str 返回 None、override 窗口边界 ±1
+- 应用代码改动：`app/backtest/persistence.py` +2 行（`sortino_ratio` 和 `calmar_ratio` 写进 `metrics_payload`），设计文档已注明
+- 测试结果：目标文件 78 → 130（+52），全量 backend 215 → 267（+52，无回归）
+- 验证：
+  - `.venv/bin/python -m pytest tests/` → 267 passed, 1 warning
+  - `.venv/bin/python -m pytest tests/test_momentum.py tests/test_backtest_engine.py tests/test_backtest_metrics.py tests/test_backtest_persistence.py tests/test_engine_validation.py -v` → 130 passed
+  - `git diff --stat` → 4 测试文件扩展 + 1 新测试文件 + persistence.py 2 行
+- 备注：
+  - **2023-12-31 是周日**：最初写跨年调仓测试时假设 Dec 31 是交易日，被 test 失败提醒后改为断言"最后一个 Dec 交易日"（2023-12-29）；保留日期是为了提醒未来读者
+  - **persistence.py 2 行算"补全"不算"改行为"**：`compute_metrics` 本来就计算 6 个指标，但 `save_backtest_run` 只存 4 个——加上 sortino/calmar 是补全已有数据落库，不引入新概念
+  - **TDD 脚本启发式不匹配项目布局**：`speccoding-tdd.sh verify` 在 `py:` 分支只查 `tests/test_X.py`，不认 `backend/tests/test_X.py`。本次 TDD 精神满足（先写测试→跑通→再补 2 行实现），脚本形式校验需在 v1.0 后续 change 中适配 backend 路径或调整脚本
+  - **rebalance_log 持久化未做**：原本设计想加 `_log_json` 列保存每期调仓明细，但 `BacktestRun` 模型无对应列，加列需 alembic 迁移；当前 change 范围小，留到后续；测试用 `hasattr(added, "rebalance_log_json") == False` 锁定这一缺口
