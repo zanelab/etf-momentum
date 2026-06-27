@@ -37,7 +37,16 @@ v1.0 已交付的全部业务能力：
 - Docker 20.10+ 与 Docker Compose v2（`docker compose version` 验证）
 - macOS / Linux 推荐；Windows 推荐 WSL2
 
-### 端到端首跑清单（5 分钟）
+### 两条首跑路径
+
+按需选择「快速展示」或「真实数据」：
+
+| 路径 | 适用场景 | 耗时 | 依赖网络 |
+|------|---------|------|---------|
+| **A. 快速展示** | 技术分享、CI、Demo 录像、断网环境 | ≈ 30 秒 | ❌ 不依赖 akshare |
+| **B. 真实数据** | 个人投资、研究分析 | ≈ 2-3 分钟 | ✅ 依赖 akshare |
+
+#### 路径 A：快速展示（推荐新用户）
 
 ```bash
 # 1. 克隆与启动
@@ -46,6 +55,29 @@ cd etf-momentum
 make up                    # 后台启动 backend + frontend
 
 # 2. 创建数据库表结构（首次必做）
+docker compose exec backend uv run alembic upgrade head
+
+# 3. 灌入内置演示数据（15 只 ETF × 1079 天 ≈ 16185 行日线 + 1 个 signal snapshot + 1 个示例 pool）
+make seed-demo
+# 输出：loaded: etfs=15 daily_prices=16185 signals=15 pool=宽基三杰
+
+# 4. 打开浏览器
+#    Dashboard（动量排名）：    http://localhost:5173/dashboard
+#    回测工作台：              http://localhost:5173/backtest
+#    ETF 池管理：              http://localhost:5173/pools
+#    健康检查：                http://localhost:5173/health
+#    Swagger UI（后端 API）：  http://localhost:8000/docs
+```
+
+> ⚠️ **演示数据仅用于系统功能演示，不构成投资建议**。演示数据来自 akshare 一次性快照（约 3 年历史），生成日期见 `backend/app/data/fixtures/demo_data.json` 的 `generated_at` 字段。
+
+#### 路径 B：真实数据
+
+```bash
+# 1-2. 同上（克隆 + 启动 + 迁移）
+git clone https://github.com/zanelab/etf-momentum.git
+cd etf-momentum
+make up
 docker compose exec backend uv run alembic upgrade head
 
 # 3. 同步 ETF 主数据（全市场清单，约 800+ 只，约 30 秒）
@@ -59,13 +91,10 @@ docker compose exec backend uv run python -m app.data.sync prices \
 docker compose exec backend uv run python -m app.data.signal \
     run --date $(date +%Y-%m-%d) --pool 510300,510500,159915
 
-# 6. 打开浏览器
-#    Dashboard（动量排名）：    http://localhost:5173/dashboard
-#    回测工作台：              http://localhost:5173/backtest
-#    ETF 池管理：              http://localhost:5173/pools
-#    健康检查：                http://localhost:5173/health
-#    Swagger UI（后端 API）：  http://localhost:8000/docs
+# 6. 打开浏览器（同路径 A）
 ```
+
+**两条路径可混跑**：演示数据 + 真实数据通过 upsert 自然合并，DB 行数累加。
 
 ### 自检命令
 
@@ -74,9 +103,11 @@ docker compose exec backend uv run python -m app.data.signal \
 curl http://localhost:8000/health
 # 期望：{"status":"ok"}
 
-# 后端 ETF 数量
+# 后端 ETF 数量（路径 A：15；路径 B：800+）
 curl http://localhost:8000/api/v1/etfs/count
-# 期望：{"count":<N>}，N 应 ≥ 800
+
+# 拿最新信号
+curl http://localhost:8000/api/v1/signals/latest
 
 # 前端可达
 curl -I http://localhost:5173/
@@ -116,6 +147,8 @@ etf-momentum/
 | `make rebuild` | 重建镜像（无缓存） |
 | `make shell-backend` | 进入 backend bash |
 | `make shell-frontend` | 进入 frontend sh |
+| `make seed-demo` | 灌入内置演示数据（Docker 容器环境） |
+| `make seed-demo-local` | 灌入内置演示数据（本地开发，跳过 Docker） |
 | `make verify` | 运行冒烟自检（config + 3 端点 curl） |
 | `make clean` | 停止容器 **并删除 volume**（数据丢失） |
 | `make help` | 列出所有 target |
