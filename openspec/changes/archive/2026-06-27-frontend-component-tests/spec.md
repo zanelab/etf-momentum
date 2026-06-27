@@ -1,0 +1,1 @@
+specs/component-coverage/spec.md

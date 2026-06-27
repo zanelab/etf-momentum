@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "active_change": "backend-unit-tests-backtest-momentum",
-  "current_phase": "archive",
-  "branch": "feature/backend-unit-tests-backtest-momentum",
+  "active_change": "frontend-component-tests",
+  "current_phase": "executing",
+  "branch": "feature/frontend-component-tests",
   "parent_branch": "main",
   "proposal_confirmed": "true",
   "design_confirmed": "true",
   "spec_created": "true",
   "plan_created": "true",
-  "plan_total": "34",
-  "plan_done": "34",
-  "spec_synced": "true",
-  "code_pushed": "true",
-  "created_at": "2026-06-27T10:27:55Z",
-  "updated_at": "2026-06-27T11:07:54Z"
+  "plan_total": "25",
+  "plan_done": "25",
+  "spec_synced": false,
+  "code_pushed": false,
+  "created_at": "2026-06-27T11:10:35Z",
+  "updated_at": "2026-06-27T11:54:32Z"
 }
