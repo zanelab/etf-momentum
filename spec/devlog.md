@@ -278,3 +278,24 @@
   - **TDD 脚本 bug 复现 2**：`find_test_file` 候选路径 `__tests__/<name>.test.tsx` 缺失（只有 `.test.ts`）；tsx 组件测试若放 `__tests__/` 子目录会因 `set -e` 静默 exit。**本次绕过**：组件测试放与 impl 同级（`ActionBadge.test.tsx` 与 `ActionBadge.tsx` 同目录）。**建议向上游提 PR**
   - **OpenSpec vs speccoding 双系统**：speccoding 期望 `openspec/changes/<name>/{spec.md,plan.md}` 平铺；OpenSpec 期望 `openspec/changes/<name>/{specs/<cap>/spec.md,tasks.md}` 子目录。本次用 symlink 桥接（`spec.md` → `specs/momentum-dashboard/spec.md`，`plan.md` → `tasks.md`），让 speccoding gate 通过而保留 OpenSpec 校验
   - **state 漂移已修**：开工时 `.speccoding-state.json` 卡在 `rest-api` 的 `merge` 阶段（plan_done 67/70、code_pushed=false），且 main 分支尚未真正合并。手动 `git merge --no-ff feature/rest-api` + `git push` + `code_pushed=true` 后，再 init frontend-dashboard 状态机
+
+
+## change: frontend-etf-pool-management
+- 日期：2026-06-27
+- 分支：feature/frontend-etf-pool-management
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 实现：
+  - 后端：`backend/alembic/versions/c1d2e3f4a5b6_etf_pools.py` 新增 `etf_pools` + `etf_pool_members` 两表（pool_id FK CASCADE + etf_code FK → etfs.code + composite PK）；`backend/app/models/etf_pool.py` SQLAlchemy ORM；`backend/app/services/pool_service.py` CRUD + 三种 typed exception（PoolNameConflictError/UnknownEtfCodeError/NotFoundError）；`backend/app/api/v1/pools.py` 5 端点；router 注册
+  - 前端：`frontend/src/api/pools.ts` 类型 + 5 函数；`frontend/src/stores/pools-store.ts` zustand CRUD + 409/422 → form field 映射 + 删除/更新后从 items 移除/更新；`frontend/src/components/pools/EtfPickerGrid.tsx` 复用搜索 + show-12 + locked 网格；`PoolList.tsx` 卡片网格 hover 删除；`PoolEditor.tsx` 表单 + diff 摘要；`PoolsPage.tsx` 双栏装配 + 原生 confirm
+  - BacktestForm 池集成：mode 切换（使用策略池 / 自定义）+ pool 模式 locked picker + 自动注入池成员 + 原生 confirm；`BacktestRequest` 新增 `pool_id?: number | null`；BacktestPage 拉 pools + selectedPoolId 时 fetchOne
+  - 路由：`<Route path="pools" />` + navItems 插入"策略池"
+- 测试：vitest 165/165 通过（23 个测试文件；新增 49：11 pools-api + 16 pools-store + 10 EtfPickerGrid + 5 PoolList + 12 PoolEditor + 11 PoolsPage + 6 BacktestForm-pool 模式（净增 6，BacktestForm 从 8 升到 18））；backend pytest 215/215 通过（新增 15：test_api_pools）
+- 验证：
+  - tsc --noEmit: 0 errors
+  - vite build: 597 KB JS（gzip 182 KB），4.6s 完成
+  - 端到端冒烟（手动）：uvicorn + vite dev 同启；`POST /pools` 200，`GET /pools` 列表，`PUT /pools/{id}` 改名+加成员，`POST /pools` 同名 → 409 中文 message，`POST /pools` 未知 code → 422 中文 message，`DELETE /pools/{id}` 204；前端 dev server 200 OK，`/pools` 路由可达
+- 备注：
+  - **akshare 价格同步 bug**：`POST /backtest` 携带 `pool_id` 后返回 422 `insufficient price history`，与本次前端 / 池实现无关——是预先存在的数据源问题。`pool_id` 字段已被后端正确接收并展开为成员列表
+  - **PoolEditor useEffect 死循环**：第一版用 `useEffect([initialCodes])` 在编辑态同步 state，结果触发无限重渲染导致 vitest 整体挂起。改用父级 `key={pool.id}` remount 模式规避；语义更干净（每次切池都重置编辑器 state）
+  - **mode 切换确认语义**：初版"切换 → 清空自定义"被 task 9.7 否定（"之前自定义勾选恢复"），改为"切换 → 弹 confirm 让用户决定是否清空"——最终实现是"确认后保留自定义选择，仅提示将忽略当前选择"。如有强需求要恢复原始选择，应改为"两个独立 state 分轨"
+  - **Apidog 风格 vs 中文 message**：后端 409/422 错误信息直接返回中文（`Pool '宽基核心' already exists` / `Unknown ETF codes: ['999999']`），store 通过 `deriveFieldFromMessage` 把字符串消息按关键字映射到 name/etf_codes 字段。简单但脆弱——若消息英文风格改变会失效；更好的方案是后端返回结构化 `{field, code}` 而非纯字符串

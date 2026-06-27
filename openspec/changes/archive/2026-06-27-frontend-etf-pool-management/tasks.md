@@ -31,8 +31,8 @@
 
 ## 5. 前端：PoolsPage 装配
 
-- [ ] 5.1 新增 `frontend/src/pages/PoolsPage.tsx`：useEffect 拉 pools；左侧 PoolList + 右侧 PoolEditor（编辑态）；新建按钮清空编辑器进入创建态；删除走原生 confirm；409/422/网络错误分别展示
-- [ ] 5.2 新增 `frontend/src/pages/PoolsPage.test.tsx`：渲染空态、列表渲染、点击新建进入创建态、点击编辑进入编辑态、删除确认、删除成功后列表更新
+- [x] 5.1 新增 `frontend/src/pages/PoolsPage.tsx`：useEffect 拉 pools；左侧 PoolList + 右侧 PoolEditor（编辑态）；新建按钮清空编辑器进入创建态；删除走原生 confirm；409/422/网络错误分别展示
+- [x] 5.2 新增 `frontend/src/pages/PoolsPage.test.tsx`：渲染空态、列表渲染、点击新建进入创建态、点击编辑进入编辑态、删除确认、删除成功后列表更新
 
 ## 6. 前端：BacktestForm 池集成
 
