@@ -1,7 +1,7 @@
 {
   "version": 1,
   "active_change": "frontend-component-tests",
-  "current_phase": "executing",
+  "current_phase": "merge",
   "branch": "feature/frontend-component-tests",
   "parent_branch": "main",
   "proposal_confirmed": "true",
@@ -10,8 +10,8 @@
   "plan_created": "true",
   "plan_total": "25",
   "plan_done": "25",
-  "spec_synced": false,
-  "code_pushed": false,
+  "spec_synced": "true",
+  "code_pushed": "true",
   "created_at": "2026-06-27T11:10:35Z",
-  "updated_at": "2026-06-27T11:54:32Z"
+  "updated_at": "2026-06-27T11:57:36Z"
 }
