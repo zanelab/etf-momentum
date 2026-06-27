@@ -343,3 +343,30 @@
   - **loading 态测试**：让 `apiGet` 返回 `new Promise(() => {})`（never resolving）即可把页面钉在 loading 态，不必人为去 setState
   - **Layout 断言策略**：用 `aria-current="page"` 锁定 active 高亮，避免绑死 Tailwind className（`bg-primary` / `text-primary-foreground` 在 Tailwind 升级时容易变）
   - **react-router-dom 未来 flag 警告**：测试时打印 `v7_startTransition` / `v7_relativeSplatPath` warning，不影响测试结果；后续 v1.0 演示数据预置 change 中可以一并处理
+
+## change: readme-startup-docs
+- 日期：2026-06-27
+- 分支：feature/readme-startup-docs
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 范围：纯文档变更，零代码 / 配置 / Docker / Make / 测试改动
+- 文档改动：
+  - `README.md`（重写，95 → 224 行）：8 个章节（项目简介 / 目录 / 功能特性 / 快速开始 / 项目结构 / Docker 常用命令 / 本地开发 / 故障排查 / 文档导航 / 里程碑）；新增 5 分钟端到端首跑清单（up → migrate → sync etfs → sync prices → signal run → 浏览器）；4 类 FAQ（数据空 / 端口占用 / akshare 同步 / 测试端口冲突）；所有命令与 Makefile / docker-compose / package.json 一致
+  - `backend/README.md`（重写，617 → 451 行）：测试数 200 → 267；新增「CLI 命令」章节（sync etfs/prices + signal run/show）；API 速查表 12 → 18 端点；项目结构补齐 pools router + signals 模块 + metrics 模块 + backtest.persistence 的 sortino/calmar 写入；「后续计划」清空 v1.0 已完成项
+  - `frontend/README.md`（重写，120 → 199 行）：4 个页面 + Layout（之前只有 HealthPage）；5 个 Zustand store（之前只列 health-store）；190 vitest 测试；新增「页面说明」「Zustand store 清单」「API 客户端」章节；「后续计划」清空 v1.0 已完成项
+- 数字校正：
+  - 后端测试 267（`uv run pytest --collect-only -q | tail -1`）
+  - 前端测试 190 / 26 文件（`pnpm test 2>&1 | grep -E "Test Files|Tests"`）
+  - API 端点 18（含 health；v1 业务端点 17：4 etfs + 5 pools + 2 signals + 4 backtest + 2 sync）
+  - 前端页面 4（Dashboard / Backtest / Pools / Health）
+  - Zustand store 5（health / etfs / signals / backtest / pools）
+- 验证：
+  - `git diff main -- '*.py' '*.tsx' '*.ts' '*.json' '*.toml' '*.lock' 'Dockerfile' 'docker-compose.yml' Makefile vite.config.ts tsconfig.json tailwind.config.js postcss.config.js'` → 空
+  - `make help` → 输出与 README「Docker 常用命令」章节一一对应
+  - `docker compose config --quiet` → OK
+  - `uv run python -c "from app.backtest import compute_metrics, ..."` → imports OK
+  - `pnpm test` → 190 passed (26 files)
+- 备注：
+  - **「12 个 REST 端点」是历史口径**：spec/tasks.md 行 19 写的 12 是 v1 阶段 3 时的快照（含 4 etfs + 2 signals + 4 backtest + 2 sync）。v1.0 实际交付时新增 pools 5 端点（2026-06-27 完成 etf-pool-management change），合计 17 业务端点 + 1 health = 18。本次 readme-startup-docs 在 README 中以真实数字为准；spec/tasks.md 的 12 暂留作历史记录，留待后续「spec 一致性」change 统一刷新
+  - **没有新增 docs/QUICKSTART.md**：按 design 决策 2，把 5 分钟首跑清单内嵌到根 README「快速开始」章节。后续若需要 i18n / 独立分发，再拆出独立文件
+  - **没有改动 spec/requirements.md / spec/design.md**：这些是项目级 spec（OpenSpec 配置 schema），不是面向用户的文档；变更理由放在 openspec/changes/archive/2026-06-27-readme-startup-docs/ 即可
+  - **openspec 同步了 2 个新 capability**：user-onboarding（首跑流程约束）+ feature-inventory（README 内容契约）。前者是面向新用户的行为规范，后者是面向未来 README 维护者的内容契约

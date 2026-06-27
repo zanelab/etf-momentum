@@ -24,7 +24,7 @@
 ### 阶段 4：质量与交付
 - [x] 后端单元测试（回测引擎、动量计算）*(2026-06-27 完成，change: backend-unit-tests-backtest-momentum；目标文件 78 → 130 测试)*
 - [x] 前端组件测试*(2026-06-27 完成，change: frontend-component-tests；vitest 165 → 190 测试)*
-- [ ] README + 启动文档
+- [x] README + 启动文档*(2026-06-27 完成，change: readme-startup-docs；3 个 README 重写 / 新增 5-min 首跑清单 / 18 端点速查表)*
 - [ ] v1.0 演示数据预置
 
 ## v2.0 — 后续规划（占位）
