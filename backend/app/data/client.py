@@ -1,7 +1,7 @@
 """akshare 数据源抽象与实现。"""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -26,6 +26,23 @@ class DailyPriceRow:
     low: Decimal
     close: Decimal
     volume: int
+
+
+def _coerce_date(value) -> date:
+    """akshare 在不同 pandas / 版本下 `日期` 列可能是 str / pd.Timestamp / datetime / date，统一转 date。
+
+    - str → date.fromisoformat()
+    - datetime / pd.Timestamp → .date()
+    - date → 原样返回
+    - 其他 → 抛 TypeError（让上层在 DB 写入前发现）
+    """
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, str):
+        return date.fromisoformat(value)
+    raise TypeError(f"unsupported date value: {value!r} ({type(value).__name__})")
 
 
 class AkshareClient(Protocol):
@@ -72,7 +89,7 @@ class AkshareHttpClient:
         for _, r in df.iterrows():
             rows.append(
                 DailyPriceRow(
-                    date=r["日期"].date() if hasattr(r["日期"], "date") else r["日期"],
+                    date=_coerce_date(r["日期"]),
                     open=Decimal(str(r["开盘"])),
                     high=Decimal(str(r["最高"])),
                     low=Decimal(str(r["最低"])),

@@ -19,19 +19,10 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from app.data.client import AkshareHttpClient, DailyPriceRow, EtfMasterRow
+from app.data.client import AkshareHttpClient, DailyPriceRow, EtfMasterRow, _coerce_date
 from app.signals.compute import SignalRow, compute_signals
 
 logger = logging.getLogger(__name__)
-
-
-def _coerce_date(value) -> date:
-    """AkshareHttpClient.fetch_etf_hist 在不同 pandas 版本下可能返回 str 或 date，统一转 date。"""
-    if hasattr(value, "date") and callable(value.date):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(str(value))
 
 
 # 15 只目标 ETF：10 宽基 + 5 行业

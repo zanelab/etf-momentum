@@ -137,7 +137,15 @@ uv run python -m app.data.sync prices --codes 510300 \
 
 # 全量拉取（从 akshare 起点 2000-01-01 到今天）
 uv run python -m app.data.sync prices --codes 510300 --full
+
+# 同步 etfs 表里的全部 ETF（全量约 800+ 只，约 10-30 分钟）
+uv run python -m app.data.sync prices --all --full
+
+# --all 不带 --full：按各 code 的「最后日期+1」增量同步
+uv run python -m app.data.sync prices --all
 ```
+
+> `--codes` 与 `--all` 互斥（二选一）。`--all` 模式下从 `etfs` 表读取所有 code；若 etfs 表为空，CLI 返回 exit code 2 并提示先跑 `sync etfs`。
 
 实现采用 Protocol 抽象（`AkshareClient`），sync 函数只依赖接口。运行时注入 `AkshareHttpClient`，测试注入 `FakeAkshareClient`，无需网络。
 

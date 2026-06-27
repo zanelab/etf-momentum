@@ -87,6 +87,9 @@ docker compose exec backend uv run python -m app.data.sync etfs
 docker compose exec backend uv run python -m app.data.sync prices \
     --codes 510300,510500,159915 --full
 
+# 或同步 etfs 表里的全部 ETF（全量约 800+ 只，约 10-30 分钟）：
+docker compose exec backend uv run python -m app.data.sync prices --all --full
+
 # 5. 计算今日实时信号（写入 signal_snapshots 表）
 docker compose exec backend uv run python -m app.data.signal \
     run --date $(date +%Y-%m-%d) --pool 510300,510500,159915
