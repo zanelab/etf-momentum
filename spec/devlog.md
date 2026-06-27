@@ -322,3 +322,24 @@
   - **persistence.py 2 行算"补全"不算"改行为"**：`compute_metrics` 本来就计算 6 个指标，但 `save_backtest_run` 只存 4 个——加上 sortino/calmar 是补全已有数据落库，不引入新概念
   - **TDD 脚本启发式不匹配项目布局**：`speccoding-tdd.sh verify` 在 `py:` 分支只查 `tests/test_X.py`，不认 `backend/tests/test_X.py`。本次 TDD 精神满足（先写测试→跑通→再补 2 行实现），脚本形式校验需在 v1.0 后续 change 中适配 backend 路径或调整脚本
   - **rebalance_log 持久化未做**：原本设计想加 `_log_json` 列保存每期调仓明细，但 `BacktestRun` 模型无对应列，加列需 alembic 迁移；当前 change 范围小，留到后续；测试用 `hasattr(added, "rebalance_log_json") == False` 锁定这一缺口
+
+## change: frontend-component-tests
+- 日期：2026-06-27
+- 分支：feature/frontend-component-tests
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 范围：仅 3 个新 `.test.tsx` 文件，无组件代码改动
+- 测试改动：
+  - `frontend/src/components/ui/button.test.tsx`（新，9 测试）：default / destructive / outline 三个 variant 关键 className token；sm / icon 两个 size；className 合并；onClick 启用/禁用；ref 转发
+  - `frontend/src/pages/HealthPage.test.tsx`（新，10 测试）：mount 触发一次 apiGet；4 状态分支（idle/loading/ok/error）；mock never-resolving Promise 锁定 loading 态；mock 成功/失败分别验 store 转移；retry 触发第二次 apiGet
+  - `frontend/src/layouts/Layout.test.tsx`（新，6 测试）：4 个 NavLink 标签；aria-current='page' 锁定 active 高亮（基于 react-router-dom 语义，不绑 Tailwind class）；header 标题；Outlet 渲染子路由
+- 应用代码改动：无
+- 测试结果：前端 165 → 190（+25，零回归）；backend 267 不变
+- 验证：
+  - `npx vitest run` → 190 passed (26 files), 9.38s
+  - `npx tsc --noEmit` → 0 errors
+  - `npx vite build` → 596 KB JS（gzip 182 KB），5.79s
+- 备注：
+  - **HealthPage useEffect 覆写 state**：最初 4 个测试用 `useHealthStore.setState({ status: "idle" })` 后再渲染，但页面 useEffect 会立即调 `check()` 触发 `setLoading()` 把状态改成 loading。改为「先 mock apiGet，再 `await vi.waitFor(() => expect(status).toBe(...))`」等页面自然走到目标状态
+  - **loading 态测试**：让 `apiGet` 返回 `new Promise(() => {})`（never resolving）即可把页面钉在 loading 态，不必人为去 setState
+  - **Layout 断言策略**：用 `aria-current="page"` 锁定 active 高亮，避免绑死 Tailwind className（`bg-primary` / `text-primary-foreground` 在 Tailwind 升级时容易变）
+  - **react-router-dom 未来 flag 警告**：测试时打印 `v7_startTransition` / `v7_relativeSplatPath` warning，不影响测试结果；后续 v1.0 演示数据预置 change 中可以一并处理
