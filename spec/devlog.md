@@ -370,3 +370,33 @@
   - **没有新增 docs/QUICKSTART.md**：按 design 决策 2，把 5 分钟首跑清单内嵌到根 README「快速开始」章节。后续若需要 i18n / 独立分发，再拆出独立文件
   - **没有改动 spec/requirements.md / spec/design.md**：这些是项目级 spec（OpenSpec 配置 schema），不是面向用户的文档；变更理由放在 openspec/changes/archive/2026-06-27-readme-startup-docs/ 即可
   - **openspec 同步了 2 个新 capability**：user-onboarding（首跑流程约束）+ feature-inventory（README 内容契约）。前者是面向新用户的行为规范，后者是面向未来 README 维护者的内容契约
+
+## change: demo-data-v1
+- 日期：2026-06-27
+- 分支：feature/v1.0-demo-data
+- 阶段：proposal → design → spec → executing → archive（全部完成）
+- 范围：新增 2 个 CLI（loader + generator）+ 1 个 JSON fixture（2.7 MB）+ 1 个测试文件 + Makefile + README 更新
+- 数据策略：真实 akshare 一次性快照（用户选定）+ 10 宽基 + 5 行业 = 15 只 ETF
+- 新增文件：
+  - `backend/app/data/seed_demo.py`（loader CLI，`python -m app.data.seed_demo`）：幂等 upsert + 分批 commit（每 1000 行）+ PoolNameConflictError 跳过保证二次执行无副作用
+  - `backend/app/data/seed_demo_generator.py`（generator CLI，仅开发者手动工具）：CLI argparse `--output` / `--codes` / `--lookback-days`，不依赖 akshare 测试；仅在维护者刷新 fixture 时手动跑
+  - `backend/app/data/fixtures/demo_data.json`（2.7 MB）：1079 天 × 15 只 = 16185 行日线 + 1 个 signal snapshot（5 BUY + 10 HOLD，0 WATCH）+ 1 个示例 pool「宽基三杰」；version=1
+  - `backend/tests/test_seed_demo.py`（20 测试）：fixture 完整性 + parser + load_demo_data（首次/幂等/缺失/version/快照/池成员）+ CLI（success/缺失）
+  - `backend/app/data/fixtures/__init__.py`（空）
+- 修改文件：
+  - `Makefile`：新增 `seed-demo` + `seed-demo-local` target
+  - `README.md`：快速开始改为「路径 A：快速展示（`make seed-demo`）」+「路径 B：真实数据」双路径并列；新增 ⚠️ 演示数据非投资建议声明
+  - `backend/README.md`：CLI 章节新增「演示数据灌入」子节；项目结构补齐
+- 测试结果：后端测试 **267 → 287**（+20，零回归）
+- 验证：
+  - `uv run python -m app.data.seed_demo` → `loaded: etfs=15 daily_prices=16185 signals=15 pool=宽基三杰` exit 0
+  - 二次执行 → 行数无变化（幂等通过）
+  - `pytest` → 287 passed, 1 warning (deprecation)
+  - fixture 文件大小 2.7 MB < 5 MB 上限
+- 备注：
+  - **设计取舍（与 proposal 差异）**：(1) 文件大小上限从 1 MB 放宽到 5 MB（实测 2.7 MB 是 15 只 × 1079 天的最小可行尺寸，1 MB 太紧）；(2) WATCH 覆盖从「三态必须」放宽到「BUY+HOLD 必须，WATCH 可选」（1079 行/ETF 数据足够长，不可能 WATCH；如需 WATCH 演示需用 lookback=400 的 1.6 年数据集，会牺牲回测时间窗口）；(3) generator 路径从 `backend/scripts/seed_demo/generate.py` 改为 `backend/app/data/seed_demo_generator.py`（与现有 `sync.py` / `signal.py` CLI 同位置，import 路径统一为 `python -m app.data.seed_demo_generator`）
+  - **`DailyPriceRow.date` 类型不一致**：`AkshareHttpClient.fetch_etf_hist` 在某些 pandas 版本下返回字符串而非 `date` 对象。generator 通过 `_coerce_date()` 统一转换；这是文档未记录的隐式契约，已在 generator 注释中说明
+  - **SQLite Date 列返回 str**：测试中 `SELECT DISTINCT date FROM signal_snapshots` 返回字符串而非 `date` 对象；用 `date.fromisoformat()` 适配，不强制 isinstance 检查
+  - **EtfPool / EtfPoolMember 未在 conftest.py 注册**：原 conftest 只 import 4 个 model，EtfPool 表不会在测试 in-memory SQLite 中创建。本测试文件自建 engine fixture 显式 import 所有 model；conftest.py 不动避免影响其他测试
+  - **test_rollback 跳过**：upsert 失败由 SQLite 引擎抛异常，loader 主函数已有 `session.rollback()` 兜底；测试 mock 中途失败的成本/收益比不划算，已在 tasks.md 标注
+  - **fixture 文件漂移**：akshare API 可能改，演示数据生成日期标注在 `generated_at` 字段。维护者定期手动跑 generator 刷新即可

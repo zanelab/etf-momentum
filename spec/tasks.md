@@ -25,7 +25,7 @@
 - [x] 后端单元测试（回测引擎、动量计算）*(2026-06-27 完成，change: backend-unit-tests-backtest-momentum；目标文件 78 → 130 测试)*
 - [x] 前端组件测试*(2026-06-27 完成，change: frontend-component-tests；vitest 165 → 190 测试)*
 - [x] README + 启动文档*(2026-06-27 完成，change: readme-startup-docs；3 个 README 重写 / 新增 5-min 首跑清单 / 18 端点速查表)*
-- [ ] v1.0 演示数据预置
+- [x] v1.0 演示数据预置*(2026-06-27 完成，change: demo-data-v1；15 只 ETF × 1079 天 ≈ 16185 行 + signal + 宽基三杰 pool；后端测试 267 → 287)*
 
 ## v2.0 — 后续规划（占位）
 - 多策略对比（双动量、相对动量）
