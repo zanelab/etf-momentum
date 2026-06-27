@@ -258,3 +258,96 @@ class TestModuleExports:
         assert callable(compute_momentum_score)
         assert callable(compute_momentum_scores)
         assert callable(rank_scores)
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — added by backend-unit-tests-backtest-momentum change
+# ---------------------------------------------------------------------------
+
+
+class TestMomentumEdges:
+    """Edge cases for lookback/skip boundary and batch override propagation."""
+
+    # ---- lookback=0 / skip=0 -------------------------------------------
+
+    def test_lookback_zero_skip_zero_returns_zero(self):
+        """lookback=0, skip=0: closes[-1] / closes[-1] - 1 = 0."""
+        closes = [Decimal("10")] * 5
+        result = compute_momentum_score(closes, lookback=0, skip=0)
+        assert result == Decimal("0")
+
+    def test_lookback_zero_skip_zero_with_growth(self):
+        """lookback=0, skip=0 时即使价格变化也只跟自身比 → 0。"""
+        closes = [Decimal(str(i + 1)) for i in range(5)]
+        result = compute_momentum_score(closes, lookback=0, skip=0)
+        assert result == Decimal("0")
+
+    def test_skip_zero_uses_last_close(self):
+        """skip=0 时使用 closes[-1] 而非 closes[-22] → 用更近的价格。"""
+        # 用 1.00 → 1.10 序列，skip=0 时分子是 1.10，分母要看 lookback
+        closes = [Decimal("1.00")] * 5
+        closes[-1] = Decimal("1.10")
+        # lookback=4, skip=0: closes[-1] / closes[-5] - 1
+        # closes[-1] = 1.10, closes[-5] = closes[0] = 1.00
+        # result = 1.10 / 1.00 - 1 = 0.10
+        result = compute_momentum_score(closes, lookback=4, skip=0)
+        assert result == Decimal("0.10")
+
+    # ---- batch override propagation ------------------------------------
+
+    def test_scores_with_override_params_propagates(self):
+        """compute_momentum_scores 必须把 lookback/skip 传给 compute_momentum_score。"""
+        # 80 个 close，足够 lookback=60, skip=5 但不足默认 252+21
+        closes_80 = [Decimal("1.00")] * 80
+        closes_80[-6] = Decimal("1.50")   # closes[-skip-1]
+        closes_80[-66] = Decimal("1.00")  # closes[-skip-1-lookback]
+        result = compute_momentum_scores({"a": closes_80}, lookback=60, skip=5)
+        # 用 60/5 窗口：closes[-6] / closes[-66] - 1 = 1.50 / 1.00 - 1 = 0.50
+        assert result == {"a": Decimal("0.50")}
+
+    def test_scores_override_default_window_makes_long_history_insufficient(self):
+        """传入 lookback=100, skip=20 后，长度 100 的序列够默认窗口但不够 100/20 窗口。"""
+        # 长度 100，lookback=100, skip=20 → 需要 100+20+1 = 121 → 不足
+        closes = [Decimal("1.00")] * 100
+        result = compute_momentum_scores({"a": closes}, lookback=100, skip=20)
+        assert result == {"a": None}
+
+    # ---- precision ------------------------------------------------------
+
+    def test_very_large_prices_no_precision_loss(self):
+        """大价格（>1e6）不丢精度。"""
+        closes = [Decimal("1000000")] * 280
+        closes[-22] = Decimal("1500000")
+        closes[-274] = Decimal("1000000")
+        result = compute_momentum_score(closes)
+        assert result == Decimal("0.5")
+
+    def test_mixed_types_in_closes_returns_none(self):
+        """closes 列表的 recent/past 位置混入非 Decimal → 整列返回 None（不静默 cast）。"""
+        closes = [Decimal("1.00")] * 280
+        # 把 -22 位置（recent）换成 float
+        closes[-22] = 1.05  # type: ignore[assignment]
+        result = compute_momentum_score(closes)
+        assert result is None
+
+    def test_string_decimal_in_closes_returns_none(self):
+        """字符串（如 "1.00"）也不被自动 cast。"""
+        closes = [Decimal("1.00")] * 280
+        # 把 -22 位置（recent）换成字符串
+        closes[-22] = "1.10"  # type: ignore[assignment]
+        result = compute_momentum_score(closes)
+        assert result is None
+
+    def test_one_below_minimum_with_override(self):
+        """lookback=10, skip=2 时 length=12 刚好够，length=11 不够。"""
+        # 刚好够（length = lookback + skip + 1 = 13）
+        closes_13 = [Decimal("1.00")] * 13
+        closes_13[-3] = Decimal("1.20")   # closes[-skip-1] = closes[10]
+        closes_13[-13] = Decimal("1.00")  # closes[-skip-1-lookback] = closes[0]
+        result = compute_momentum_score(closes_13, lookback=10, skip=2)
+        # 1.20 / 1.00 - 1 = 0.20
+        assert result == Decimal("0.20")
+        # 少 1（length=12 < 13）→ 不够
+        closes_12 = [Decimal("1.00")] * 12
+        result = compute_momentum_score(closes_12, lookback=10, skip=2)
+        assert result is None

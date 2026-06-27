@@ -43,6 +43,8 @@ def save_backtest_run(
         "annualized_return": _decimal_to_str(result.metrics.get("annualized_return")),
         "max_drawdown": _decimal_to_str(result.metrics.get("max_drawdown")),
         "sharpe_ratio": _decimal_to_str(result.metrics.get("sharpe_ratio")),
+        "sortino_ratio": _decimal_to_str(result.metrics.get("sortino_ratio")),
+        "calmar_ratio": _decimal_to_str(result.metrics.get("calmar_ratio")),
         "params": {
             "lookback": params.lookback,
             "skip": params.skip,

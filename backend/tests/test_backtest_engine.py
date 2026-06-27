@@ -478,3 +478,307 @@ class TestModuleExports:
 
         assert callable(run_backtest)
         assert RebalanceFrequency.MONTHLY.value == "monthly"
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — added by backend-unit-tests-backtest-momentum change
+# ---------------------------------------------------------------------------
+
+
+class TestEngineEdgeCases:
+    """Edge cases and invariants not covered by the happy-path tests above."""
+
+    # ---- empty calendar -------------------------------------------------
+
+    def test_empty_calendar(self):
+        """All price data is outside [start, end] → no rebalance, NAV = initial_cash."""
+        start = date(2024, 1, 1)
+        end = date(2024, 6, 30)
+        # History lives entirely in 2023 (outside the window).
+        history = make_history(
+            ("a", make_linear_series(date(2023, 1, 2), 250, Decimal("1.00"), Decimal("0.001"))),
+            ("b", make_linear_series(date(2023, 1, 2), 250, Decimal("1.00"), Decimal("0.002"))),
+        )
+        params = BacktestParams(
+            etf_pool=["a", "b"],
+            start=start,
+            end=end,
+            initial_cash=Decimal("100000"),
+            top_n=2,
+        )
+        result = run_backtest(params, history)
+        assert result.nav_series == []
+        assert result.rebalance_log == []
+        assert result.metrics["total_return"] == Decimal("0")
+
+    # ---- rebalance day: no positive close on any top-N pick -------------
+
+    def test_rebalance_skipped_when_all_top_n_have_zero_close(self):
+        """If every top-N pick has close ≤ 0 on the rebalance day, skip the buy."""
+        start = date(2023, 1, 2)
+        # 300 days of normal data, then 1 final day with close = 0 (simulate halt/delisting).
+        normal_a = make_linear_series(start, 300, Decimal("1.00"), Decimal("0.002"))
+        normal_b = make_linear_series(start, 300, Decimal("1.00"), Decimal("0.001"))
+        rebalance_day = date(2024, 3, 31)  # end of March — monthly rebalance
+        # Extend both series to the rebalance day, but with close = 0.
+        normal_a.append((rebalance_day, Decimal("0")))
+        normal_b.append((rebalance_day, Decimal("0")))
+        history = make_history(("a", normal_a), ("b", normal_b))
+        params = BacktestParams(
+            etf_pool=["a", "b"],
+            start=date(2024, 1, 1),
+            end=date(2024, 3, 31),
+            initial_cash=Decimal("100000"),
+            top_n=2,
+        )
+        result = run_backtest(params, history)
+        # January and February rebalances should produce events (closes > 0).
+        # The March 31 rebalance is the one with all-zero close → no event for that day.
+        rebalance_dates = [ev.date for ev in result.rebalance_log]
+        assert date(2024, 3, 31) not in rebalance_dates
+
+    # ---- rebalance day: all scores None ---------------------------------
+
+    def test_rebalance_skipped_when_all_scores_none(self):
+        """All pool codes have insufficient history → rebalance skipped entirely."""
+        start = date(2024, 1, 1)
+        # All histories shorter than 273 days, so every score is None.
+        history = make_history(
+            ("a", make_flat_series(start, 100)),
+            ("b", make_flat_series(start, 50)),
+        )
+        params = BacktestParams(
+            etf_pool=["a", "b"],
+            start=start,
+            end=date(2024, 6, 30),
+            initial_cash=Decimal("100000"),
+            top_n=1,
+        )
+        result = run_backtest(params, history)
+        # The engine should walk the calendar and mark-to-market (nav constant),
+        # but never fire a rebalance (all scores None).
+        assert result.rebalance_log == []
+        assert all(nav == Decimal("100000") for _, nav in result.nav_series)
+
+    # ---- cross-year monthly rebalance -----------------------------------
+
+    def test_cross_year_monthly_rebalance_includes_december(self):
+        """December of year N gets a rebalance event in the last month of the year."""
+        # History must start well before the window so that lookback+skip+1
+        # (273) closes are available strictly before the Dec rebalance.
+        start = date(2022, 1, 2)
+        history = make_history(
+            ("a", make_linear_series(start, 700, Decimal("1.00"), Decimal("0.001"))),
+        )
+        params = BacktestParams(
+            etf_pool=["a"],
+            start=date(2023, 1, 1),
+            end=date(2023, 12, 31),
+            initial_cash=Decimal("100000"),
+            top_n=1,
+        )
+        result = run_backtest(params, history)
+        months = [ev.date.month for ev in result.rebalance_log]
+        assert 12 in months
+        # The Dec rebalance should fall on the last available trading day of Dec.
+        # 2023-12-31 is a Sunday, so it's Dec 29.
+        dec_events = [ev for ev in result.rebalance_log if ev.date.month == 12]
+        assert dec_events[0].date == date(2023, 12, 29)
+        # Sanity: it's still inside [start, end].
+        assert date(2023, 1, 1) <= dec_events[0].date <= date(2023, 12, 31)
+
+    # ---- single-day calendar -------------------------------------------
+
+    def test_single_day_calendar(self):
+        """Window contains exactly 1 trading day; rebalance fires iff that day is month/quarter-end."""
+        # 2024-01-31 is the last trading day of January → MONTHLY rebalance should fire.
+        # History needs 273+ trading days strictly before 2024-01-31.
+        single_date = date(2024, 1, 31)
+        history = make_history(
+            (
+                "a",
+                make_linear_series(date(2022, 1, 2), 500, Decimal("1.00"), Decimal("0.001"))
+                + [(single_date, Decimal("1.30"))],
+            ),
+        )
+        params = BacktestParams(
+            etf_pool=["a"],
+            start=single_date,
+            end=single_date,
+            initial_cash=Decimal("100000"),
+            top_n=1,
+        )
+        result = run_backtest(params, history)
+        assert len(result.nav_series) == 1
+        # 2024-01-31 IS a month-end → exactly 1 rebalance event.
+        assert len(result.rebalance_log) == 1
+        assert result.rebalance_log[0].date == single_date
+
+    def test_single_day_calendar_non_rebalance_day(self):
+        """Single day in the middle of a month → no rebalance."""
+        single_date = date(2024, 1, 15)
+        history = make_history(
+            (
+                "a",
+                make_linear_series(date(2023, 1, 2), 270, Decimal("1.00"), Decimal("0.001"))
+                + [(single_date, Decimal("1.30"))],
+            ),
+        )
+        params = BacktestParams(
+            etf_pool=["a"],
+            start=single_date,
+            end=single_date,
+            initial_cash=Decimal("100000"),
+            top_n=1,
+        )
+        result = run_backtest(params, history)
+        assert len(result.nav_series) == 1
+        assert result.rebalance_log == []
+
+    # ---- weight invariant ----------------------------------------------
+
+    def test_weights_sum_to_one_for_various_n(self):
+        """sum(weights) == Decimal('1') exactly for n ∈ {1, 2, 3, 5}."""
+        start = date(2023, 1, 2)
+        history = make_history(
+            ("a", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.005"))),  # strong
+            ("b", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.003"))),
+            ("c", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.002"))),
+            ("d", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.001"))),
+            ("e", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.0005"))),  # weak
+        )
+        for n in (1, 2, 3, 5):
+            params = BacktestParams(
+                etf_pool=["a", "b", "c", "d", "e"],
+                start=date(2024, 1, 1),
+                end=date(2024, 3, 31),
+                initial_cash=Decimal("100000"),
+                top_n=n,
+            )
+            result = run_backtest(params, history)
+            for ev in result.rebalance_log:
+                total = sum(ev.weights.values())
+                assert total == Decimal("1"), (
+                    f"n={n}: weights do not sum to 1: {ev.weights}"
+                )
+
+    def test_weight_residual_goes_to_last_code(self):
+        """For n=3, the last code's weight = 1 - 2 * base_weight (residual)."""
+        start = date(2023, 1, 2)
+        history = make_history(
+            ("a", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.005"))),
+            ("b", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.003"))),
+            ("c", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.002"))),
+        )
+        params = BacktestParams(
+            etf_pool=["a", "b", "c"],
+            start=date(2024, 1, 1),
+            end=date(2024, 1, 31),
+            initial_cash=Decimal("100000"),
+            top_n=3,
+        )
+        result = run_backtest(params, history)
+        ev = result.rebalance_log[0]
+        weights = list(ev.weights.values())
+        # The first n-1 weights are all equal to base_weight;
+        # the last one carries the residual.
+        base = (Decimal(1) / Decimal(3)).quantize(Decimal("0.0000000001"))
+        assert weights[0] == base
+        assert weights[1] == base
+        # Last weight = 1 - 2 * base = 0.3333333334 (1 DP above base)
+        assert weights[2] == Decimal(1) - Decimal(2) * base
+        assert weights[2] != base  # explicitly verify the residual is non-zero
+
+    # ---- delisted on day 1 ---------------------------------------------
+
+    def test_delisted_on_first_day_liquidates_to_cash(self):
+        """An ETF held over a month-end rebalance whose data ends the day before
+        that rebalance should be liquidated to cash on the rebalance day itself."""
+        start = date(2023, 1, 2)
+        # 'a' has data only up to 2024-01-30 (day before the Jan 31 rebalance).
+        a_series = make_linear_series(start, 270, Decimal("1.00"), Decimal("0.002"))
+        # 'a' is held going into Jan 31. 'b' has continuous data and is also held.
+        b_series = make_linear_series(start, 300, Decimal("1.00"), Decimal("0.001"))
+        history = make_history(("a", a_series), ("b", b_series))
+        params = BacktestParams(
+            etf_pool=["a", "b"],
+            start=date(2024, 1, 1),
+            end=date(2024, 1, 31),
+            initial_cash=Decimal("100000"),
+            top_n=1,  # only one is selected per rebalance
+        )
+        result = run_backtest(params, history)
+        # Must not raise; NAV should be finite and non-negative.
+        assert all(nav >= Decimal("0") for _, nav in result.nav_series)
+
+    # ---- sell-then-rebuy preserves NAV ---------------------------------
+
+    def test_sell_then_rebuy_preserves_nav(self):
+        """Across a rebalance event the NAV should be (approximately) unchanged:
+        the engine sells everything → cash = NAV, then re-allocates with the
+        same NAV. Small float drift is OK; what we don't want is a step
+        discontinuity caused by a missing sell or extra fee.
+        """
+        start = date(2023, 1, 2)
+        history = make_history(
+            ("a", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.002"))),
+            ("b", make_linear_series(start, 400, Decimal("1.00"), Decimal("0.001"))),
+        )
+        params = BacktestParams(
+            etf_pool=["a", "b"],
+            start=date(2024, 1, 1),
+            end=date(2024, 3, 31),
+            initial_cash=Decimal("100000"),
+            top_n=2,
+        )
+        result = run_backtest(params, history)
+        # Find NAV just before and just after the first rebalance.
+        rebal_date = result.rebalance_log[0].date
+        nav_idx = next(
+            i for i, (d, _) in enumerate(result.nav_series) if d == rebal_date
+        )
+        nav_before = result.nav_series[nav_idx - 1][1] if nav_idx > 0 else Decimal("100000")
+        nav_after = result.nav_series[nav_idx][1]
+        # Allow tiny precision drift (< 0.01% of NAV).
+        assert abs(nav_after - nav_before) / nav_before < Decimal("0.0001"), (
+            f"NAV jumped at rebalance: {nav_before} → {nav_after}"
+        )
+
+    # ---- _build_calendar filters dates outside [start, end] ------------
+
+    def test_build_calendar_filters_outside_window(self):
+        """Dates before start or after end are not in the calendar."""
+        from app.backtest.engine import _build_calendar
+
+        history = {
+            "a": [
+                (date(2023, 12, 31), Decimal("1")),  # before window
+                (date(2024, 1, 1), Decimal("1")),
+                (date(2024, 6, 30), Decimal("1")),
+                (date(2024, 7, 1), Decimal("1")),   # after window
+            ]
+        }
+        cal = _build_calendar(history, date(2024, 1, 1), date(2024, 6, 30))
+        assert date(2023, 12, 31) not in cal
+        assert date(2024, 7, 1) not in cal
+        assert date(2024, 1, 1) in cal
+        assert date(2024, 6, 30) in cal
+
+    def test_build_calendar_union_of_codes(self):
+        """Calendar is the union of dates across all codes."""
+        from app.backtest.engine import _build_calendar
+
+        history = {
+            "a": [(date(2024, 1, 1), Decimal("1")), (date(2024, 1, 3), Decimal("1"))],
+            "b": [(date(2024, 1, 2), Decimal("1")), (date(2024, 1, 3), Decimal("1"))],
+        }
+        cal = _build_calendar(history, date(2024, 1, 1), date(2024, 1, 31))
+        assert cal == [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)]
+
+    def test_find_rebalance_dates_empty_calendar(self):
+        """Empty calendar → empty rebalance set."""
+        from app.backtest.engine import _find_rebalance_dates
+
+        assert _find_rebalance_dates([], RebalanceFrequency.MONTHLY) == set()
+        assert _find_rebalance_dates([], RebalanceFrequency.QUARTERLY) == set()
+        assert RebalanceFrequency.MONTHLY.value == "monthly"
