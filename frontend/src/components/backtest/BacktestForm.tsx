@@ -2,12 +2,22 @@ import { useMemo, useState } from "react";
 
 import type { BacktestRequest, RebalanceFreq } from "@/api/backtest";
 import type { EtfItem } from "@/api/etfs";
+import type { EtfPoolSummary, EtfPoolDetail } from "@/api/pools";
+import { EtfPickerGrid } from "@/components/pools/EtfPickerGrid";
 import type { FormErrors } from "@/stores/backtest-store";
+
+export type PoolMode = "pool" | "custom";
 
 export interface BacktestFormProps {
   etfs: EtfItem[];
   etfsLoading: boolean;
   etfsError: string | null;
+  pools?: EtfPoolSummary[];
+  poolsLoading?: boolean;
+  poolsError?: string | null;
+  poolDetail?: EtfPoolDetail | null;
+  poolDetailLoading?: boolean;
+  poolsLink?: string;
   disabled?: boolean;
   formErrors?: FormErrors;
   onSubmit: (req: BacktestRequest) => void;
@@ -24,7 +34,9 @@ interface ValidationErrors {
 }
 
 interface FormState {
-  etfPool: string[];
+  mode: PoolMode;
+  selectedPoolId: number | null;
+  customEtfPool: string[];
   start: string;
   end: string;
   initialCash: string;
@@ -35,7 +47,9 @@ interface FormState {
 }
 
 const INITIAL_STATE: FormState = {
-  etfPool: [],
+  mode: "custom",
+  selectedPoolId: null,
+  customEtfPool: [],
   start: "",
   end: "",
   initialCash: "100000",
@@ -51,9 +65,9 @@ function toNumber(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function validate(state: FormState): ValidationErrors {
+function validate(state: FormState, poolSize: number): ValidationErrors {
   const errors: ValidationErrors = {};
-  if (state.etfPool.length === 0) {
+  if (poolSize === 0) {
     errors.etf_pool = "请至少选择一只 ETF";
   }
   if (!state.start) errors.start = "起始日期不能为空";
@@ -80,9 +94,9 @@ function validate(state: FormState): ValidationErrors {
   return errors;
 }
 
-function toRequest(state: FormState): BacktestRequest {
-  return {
-    etf_pool: state.etfPool,
+function toRequest(state: FormState, poolCodes: string[]): BacktestRequest {
+  const base: BacktestRequest = {
+    etf_pool: poolCodes,
     start: state.start,
     end: state.end,
     initial_cash: state.initialCash,
@@ -91,12 +105,24 @@ function toRequest(state: FormState): BacktestRequest {
     top_n: toNumber(state.topN) ?? 5,
     rebalance_freq: state.rebalanceFreq,
   };
+  if (state.mode === "pool" && state.selectedPoolId !== null) {
+    base.pool_id = state.selectedPoolId;
+  } else {
+    base.pool_id = null;
+  }
+  return base;
 }
 
 export function BacktestForm({
   etfs,
   etfsLoading,
   etfsError,
+  pools = [],
+  poolsLoading = false,
+  poolsError = null,
+  poolDetail = null,
+  poolDetailLoading = false,
+  poolsLink = "/pools",
   disabled = false,
   formErrors = {},
   onSubmit,
@@ -104,31 +130,52 @@ export function BacktestForm({
   const [state, setState] = useState<FormState>(INITIAL_STATE);
   const [localErrors, setLocalErrors] = useState<ValidationErrors>({});
 
-  const toggleEtf = (code: string) => {
-    setState((prev) => {
-      const next = prev.etfPool.includes(code)
-        ? prev.etfPool.filter((c) => c !== code)
-        : [...prev.etfPool, code];
-      return { ...prev, etfPool: next };
-    });
+  const poolCodes = useMemo(() => {
+    if (state.mode !== "pool") return state.customEtfPool;
+    if (poolDetail && poolDetail.id === state.selectedPoolId) {
+      return poolDetail.members.map((m) => m.code);
+    }
+    return [];
+  }, [state.mode, state.customEtfPool, state.selectedPoolId, poolDetail]);
+
+  const effectiveTotal = poolCodes.length;
+
+  const switchMode = (next: PoolMode) => {
+    if (next === state.mode) return;
+    if (effectiveTotal > 0) {
+      const ok = window.confirm(
+        "切换模式将忽略当前 ETF 选择，确认继续？",
+      );
+      if (!ok) return;
+    }
+    setState((prev) => ({
+      ...prev,
+      mode: next,
+      selectedPoolId: next === "pool" ? prev.selectedPoolId : null,
+    }));
+    setLocalErrors((prev) => ({ ...prev, etf_pool: undefined }));
+  };
+
+  const selectPool = (id: number | null) => {
+    setState((prev) => ({ ...prev, selectedPoolId: id }));
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const errors = validate(state);
+    const errors = validate(state, effectiveTotal);
     setLocalErrors(errors);
     if (Object.keys(errors).length > 0) return;
-    onSubmit(toRequest(state));
-  };
-
-  const showEtfError = localErrors.etf_pool ?? formErrors.etf_pool;
-  const fieldError = (key: keyof ValidationErrors): string | undefined => {
-    return localErrors[key] ?? formErrors[key as keyof FormErrors];
+    onSubmit(toRequest(state, poolCodes));
   };
 
   const submitDisabled = useMemo(() => {
     return disabled || etfsLoading || etfsError !== null;
   }, [disabled, etfsLoading, etfsError]);
+
+  const showEtfError = localErrors.etf_pool ?? formErrors.etf_pool;
+  const fieldError = (key: keyof ValidationErrors): string | undefined => {
+    return localErrors[key] ?? formErrors[key as keyof FormErrors];
+  };
 
   return (
     <form
@@ -137,57 +184,71 @@ export function BacktestForm({
       data-testid="backtest-form"
     >
       <section>
-        <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold">ETF 池</h2>
+        <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2" data-testid="mode-toggle">
+            <button
+              type="button"
+              onClick={() => switchMode("pool")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                state.mode === "pool"
+                  ? "bg-primary text-primary-foreground"
+                  : "border bg-background hover:bg-muted"
+              }`}
+              data-testid="mode-pool"
+              disabled={submitDisabled}
+            >
+              使用策略池
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("custom")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                state.mode === "custom"
+                  ? "bg-primary text-primary-foreground"
+                  : "border bg-background hover:bg-muted"
+              }`}
+              data-testid="mode-custom"
+              disabled={submitDisabled}
+            >
+              自定义
+            </button>
+          </div>
           <span className="text-sm text-muted-foreground" data-testid="pool-count">
-            已选 {state.etfPool.length} / {etfs.length}
+            已选 {effectiveTotal} / {etfs.length}
           </span>
         </header>
 
-        {etfsLoading && (
-          <div className="text-sm text-muted-foreground">ETF 字典加载中…</div>
+        {state.mode === "pool" && (
+          <PoolModeArea
+            pools={pools}
+            poolsLoading={poolsLoading}
+            poolsError={poolsError}
+            poolDetail={poolDetail}
+            poolDetailLoading={poolDetailLoading}
+            selectedPoolId={state.selectedPoolId}
+            onSelectPool={selectPool}
+            etfs={etfs}
+            etfsLoading={etfsLoading}
+            etfsError={etfsError}
+            poolCodes={poolCodes}
+            disabled={submitDisabled}
+            poolsLink={poolsLink}
+            testId="backtest-pool-mode"
+          />
         )}
 
-        {etfsError && (
-          <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-            ETF 字典加载失败：{etfsError}
-          </div>
-        )}
-
-        {!etfsLoading && !etfsError && etfs.length === 0 && (
-          <div className="text-sm text-muted-foreground">暂无 ETF 可选</div>
-        )}
-
-        {!etfsLoading && !etfsError && etfs.length > 0 && (
-          <div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4"
-            data-testid="pool-grid"
-          >
-            {etfs.map((etf) => {
-              const checked = state.etfPool.includes(etf.code);
-              return (
-                <label
-                  key={etf.code}
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors ${
-                    checked ? "border-primary bg-primary/5" : "border-border bg-background"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleEtf(etf.code)}
-                    disabled={submitDisabled}
-                    className="h-4 w-4 accent-primary"
-                    data-testid={`pool-${etf.code}`}
-                  />
-                  <span className="flex-1 truncate">
-                    <span className="font-mono text-xs text-muted-foreground">{etf.code}</span>
-                    <span className="ml-2">{etf.name}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+        {state.mode === "custom" && (
+          <EtfPickerGrid
+            etfs={etfs}
+            selected={state.customEtfPool}
+            onChange={(next) =>
+              setState((prev) => ({ ...prev, customEtfPool: next }))
+            }
+            disabled={submitDisabled}
+            loading={etfsLoading}
+            error={etfsError}
+            testId="backtest-picker"
+          />
         )}
 
         {showEtfError && (
@@ -283,6 +344,138 @@ export function BacktestForm({
         </button>
       </div>
     </form>
+  );
+}
+
+interface PoolModeAreaProps {
+  pools: EtfPoolSummary[];
+  poolsLoading: boolean;
+  poolsError: string | null;
+  poolDetail: EtfPoolDetail | null;
+  poolDetailLoading: boolean;
+  selectedPoolId: number | null;
+  onSelectPool: (id: number | null) => void;
+  etfs: EtfItem[];
+  etfsLoading: boolean;
+  etfsError: string | null;
+  poolCodes: string[];
+  disabled: boolean;
+  poolsLink: string;
+  testId: string;
+}
+
+function PoolModeArea({
+  pools,
+  poolsLoading,
+  poolsError,
+  poolDetail,
+  poolDetailLoading,
+  selectedPoolId,
+  onSelectPool,
+  etfs,
+  etfsLoading,
+  etfsError,
+  poolCodes,
+  disabled,
+  poolsLink,
+  testId,
+}: PoolModeAreaProps) {
+  const retry = (
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className="mt-2 rounded-md border bg-white px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100"
+      data-testid={`${testId}-retry`}
+    >
+      重试
+    </button>
+  );
+
+  return (
+    <div className="space-y-3" data-testid={testId}>
+      <div className="flex flex-wrap items-center gap-3">
+        <label
+          htmlFor={`${testId}-select`}
+          className="text-sm font-medium"
+        >
+          策略池
+        </label>
+        <select
+          id={`${testId}-select`}
+          value={selectedPoolId === null ? "" : String(selectedPoolId)}
+          onChange={(e) =>
+            onSelectPool(e.target.value === "" ? null : Number(e.target.value))
+          }
+          disabled={disabled || poolsLoading || poolsError !== null}
+          className="min-w-[200px] rounded-md border bg-background px-3 py-1.5 text-sm shadow-sm disabled:opacity-50"
+          data-testid={`${testId}-select`}
+        >
+          <option value="">请选择…</option>
+          {pools.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}（{p.member_count} 只）
+            </option>
+          ))}
+        </select>
+        {poolsLoading && (
+          <span
+            className="text-xs text-muted-foreground"
+            data-testid={`${testId}-loading`}
+          >
+            加载策略池…
+          </span>
+        )}
+        {poolsError && !poolsLoading && (
+          <span
+            className="text-xs text-rose-600"
+            data-testid={`${testId}-error`}
+          >
+            加载失败：{poolsError}
+            {retry}
+          </span>
+        )}
+        {!poolsLoading && !poolsError && pools.length === 0 && (
+          <span
+            className="text-xs text-muted-foreground"
+            data-testid={`${testId}-empty`}
+          >
+            暂无策略池，
+            <a
+              href={poolsLink}
+              className="text-primary hover:underline"
+              data-testid={`${testId}-link`}
+            >
+              前往创建
+            </a>
+          </span>
+        )}
+      </div>
+
+      {selectedPoolId !== null && poolDetailLoading && (
+        <div
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+          data-testid={`${testId}-detail-loading`}
+        >
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          加载池成员…
+        </div>
+      )}
+
+      {selectedPoolId !== null && !poolDetailLoading && poolDetail && (
+        <EtfPickerGrid
+          etfs={etfs}
+          selected={poolCodes}
+          onChange={() => {
+            /* locked: pool controls selection */
+          }}
+          locked
+          disabled={disabled}
+          loading={etfsLoading}
+          error={etfsError}
+          testId={`${testId}-picker`}
+        />
+      )}
+    </div>
   );
 }
 

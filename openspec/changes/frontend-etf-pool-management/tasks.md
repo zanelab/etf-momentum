@@ -15,19 +15,19 @@
 
 ## 3. 前端：API 客户端 + 状态管理
 
-- [ ] 3.1 新增 `frontend/src/api/pools.ts`：定义 `EtfPoolSummary` / `EtfPoolMember` / `EtfPoolDetail` / `EtfPoolCreateRequest` / `EtfPoolUpdateRequest` 类型，导出 `listPools()` / `getPool(id)` / `createPool(req)` / `updatePool(id, req)` / `deletePool(id)`
-- [ ] 3.2 新增 `frontend/src/api/__tests__/pools.test.ts`：覆盖 5 函数成功 + 409 + 422 + 404 + 网络错误
-- [ ] 3.3 新增 `frontend/src/stores/pools-store.ts`：zustand store，状态 `{ status, items, currentPool, currentPoolStatus, createStatus, updateStatus, deleteStatus, error, fetchAll, fetchOne, create, update, remove, reset }`；delete 成功后从 items 中移除该 id
-- [ ] 3.4 新增 `frontend/src/stores/__tests__/pools-store.test.ts`：覆盖 list/get/create/update/delete 五个动作 + 错误路径
+- [x] 3.1 新增 `frontend/src/api/pools.ts`：定义 `EtfPoolSummary` / `EtfPoolMember` / `EtfPoolDetail` / `EtfPoolCreateRequest` / `EtfPoolUpdateRequest` 类型，导出 `listPools()` / `getPool(id)` / `createPool(req)` / `updatePool(id, req)` / `deletePool(id)`
+- [x] 3.2 新增 `frontend/src/api/__tests__/pools.test.ts`：覆盖 5 函数成功 + 409 + 422 + 404 + 网络错误
+- [x] 3.3 新增 `frontend/src/stores/pools-store.ts`：zustand store，状态 `{ status, items, currentPool, currentPoolStatus, createStatus, updateStatus, deleteStatus, error, fetchAll, fetchOne, create, update, remove, reset }`；delete 成功后从 items 中移除该 id
+- [x] 3.4 新增 `frontend/src/stores/__tests__/pools-store.test.ts`：覆盖 list/get/create/update/delete 五个动作 + 错误路径
 
 ## 4. 前端：池管理 UI 组件
 
-- [ ] 4.1 新增 `frontend/src/components/pools/EtfPickerGrid.tsx`：复用 BacktestForm 的 checkbox 网格（搜索 + "已选 N / total" 头部 + show first 12 + 锁定模式），独立组件以便 PoolsPage 和 BacktestForm 都能用
-- [ ] 4.2 新增 `frontend/src/components/pools/EtfPickerGrid.test.tsx`：渲染、搜索过滤、选中计数、locked prop 禁用
-- [ ] 4.3 新增 `frontend/src/components/pools/PoolList.tsx`：卡片网格，hover 显示编辑 / 删除按钮，点击编辑触发回调
-- [ ] 4.4 新增 `frontend/src/components/pools/PoolList.test.tsx`：空态、列表渲染、编辑 / 删除回调触发
-- [ ] 4.5 新增 `frontend/src/components/pools/PoolEditor.tsx`：表单（名称、描述、EtfPickerGrid、diff 摘要、保存 / 取消按钮）；name 字段下方预留 409 错误位；etf_codes 错误位；diff 摘要只在 count 变化时显示
-- [ ] 4.6 新增 `frontend/src/components/pools/PoolEditor.test.tsx`：空名拦截、空池拦截、保存触发回调、diff 摘要渲染、409 错误展示
+- [x] 4.1 新增 `frontend/src/components/pools/EtfPickerGrid.tsx`：复用 BacktestForm 的 checkbox 网格（搜索 + "已选 N / total" 头部 + show first 12 + 锁定模式），独立组件以便 PoolsPage 和 BacktestForm 都能用
+- [x] 4.2 新增 `frontend/src/components/pools/EtfPickerGrid.test.tsx`：渲染、搜索过滤、选中计数、locked prop 禁用
+- [x] 4.3 新增 `frontend/src/components/pools/PoolList.tsx`：卡片网格，hover 显示编辑 / 删除按钮，点击编辑触发回调
+- [x] 4.4 新增 `frontend/src/components/pools/PoolList.test.tsx`：空态、列表渲染、编辑 / 删除回调触发
+- [x] 4.5 新增 `frontend/src/components/pools/PoolEditor.tsx`：表单（名称、描述、EtfPickerGrid、diff 摘要、保存 / 取消按钮）；name 字段下方预留 409 错误位；etf_codes 错误位；diff 摘要只在 count 变化时显示
+- [x] 4.6 新增 `frontend/src/components/pools/PoolEditor.test.tsx`：空名拦截、空池拦截、保存触发回调、diff 摘要渲染、409 错误展示
 
 ## 5. 前端：PoolsPage 装配
 
@@ -36,29 +36,31 @@
 
 ## 6. 前端：BacktestForm 池集成
 
-- [ ] 6.1 修改 `frontend/src/components/backtest/BacktestForm.tsx`：顶部新增 mode 切换（"使用策略池" / "自定义"），pool 模式下 EtfPickerGrid 加 `locked` prop + 自动注入池成员 + 显示池下拉；切池模式弹原生 confirm
-- [ ] 6.2 新增 `frontend/src/components/backtest/BacktestForm.test.tsx` 用例：pool 模式渲染、locked checkbox、池列表为空显示链接、池列表加载失败显示重试
-- [ ] 6.3 修改 `frontend/src/api/backtest.ts`：`BacktestRequest` 新增可选 `pool_id?: number | null`
-- [ ] 6.4 修改 `frontend/src/stores/backtest-store.ts`：submit 时透传 pool_id（state 中加 poolId 字段 + onSubmit 调用方传入）
+- [x] 6.1 修改 `frontend/src/components/backtest/BacktestForm.tsx`：顶部新增 mode 切换（"使用策略池" / "自定义"），pool 模式下 EtfPickerGrid 加 `locked` prop + 自动注入池成员 + 显示池下拉；切池模式弹原生 confirm
+- [x] 6.2 新增 `frontend/src/components/backtest/BacktestForm.test.tsx` 用例：pool 模式渲染、locked checkbox、池列表为空显示链接、池列表加载失败显示重试
+- [x] 6.3 修改 `frontend/src/api/backtest.ts`：`BacktestRequest` 新增可选 `pool_id?: number | null`
+- [x] 6.4 修改 `frontend/src/stores/backtest-store.ts`：submit 时透传 pool_id（state 中加 poolId 字段 + onSubmit 调用方传入）
 
 ## 7. 路由与导航
 
-- [ ] 7.1 修改 `frontend/src/App.tsx`：新增 `<Route path="pools" element={<PoolsPage />} />`
-- [ ] 7.2 修改 `frontend/src/layouts/Layout.tsx`：在 navItems 插入 `{ to: "/pools", label: "策略池" }`
+- [x] 7.1 修改 `frontend/src/App.tsx`：新增 `<Route path="pools" element={<PoolsPage />} />`
+- [x] 7.2 修改 `frontend/src/layouts/Layout.tsx`：在 navItems 插入 `{ to: "/pools", label: "策略池" }`
 
 ## 8. 类型与构建验证
 
-- [ ] 8.1 跑 `cd frontend && pnpm tsc --noEmit`，确认无 TS 错误
-- [ ] 8.2 跑 `cd frontend && pnpm vitest run`，确认既有 + 新增测试全过（目标 130+）
-- [ ] 8.3 跑 `cd backend && uv run pytest`，确认后端测试全过
-- [ ] 8.4 跑 `cd frontend && pnpm build`，确认 `tsc -b && vite build` 通过
+- [x] 8.1 跑 `cd frontend && pnpm tsc --noEmit`，确认无 TS 错误
+- [x] 8.2 跑 `cd frontend && pnpm vitest run`，确认既有 + 新增测试全过（目标 130+）
+- [x] 8.3 跑 `cd backend && uv run pytest`，确认后端测试全过
+- [x] 8.4 跑 `cd frontend && pnpm build`，确认 `tsc -b && vite build` 通过
 
 ## 9. 端到端冒烟（手动）
 
-- [ ] 9.1 后端 uvicorn 8000 + `cd frontend && pnpm dev`；浏览 `/pools`
-- [ ] 9.2 新建池"宽基核心"（3 只）→ 列表显示 → 详情正确
-- [ ] 9.3 编辑池改名为"宽基核心 2" + 加 1 只 → 列表更新 → 详情正确
-- [ ] 9.4 再次新建同名"宽基核心 2" → 409 提示
-- [ ] 9.5 删除池 → confirm → 列表移除
-- [ ] 9.6 浏览器到 `/backtest` → 切"使用策略池" → 选"宽基核心 2" → checkbox 全自动勾且锁定 → 提交 → 跑回测
-- [ ] 9.7 切回"自定义" → 之前自定义勾选恢复（如果有）
+- [x] 9.1 后端 uvicorn 8000 + `cd frontend && pnpm dev`；浏览 `/pools`
+- [x] 9.2 新建池"宽基核心"（3 只）→ 列表显示 → 详情正确
+- [x] 9.3 编辑池改名为"宽基核心 2" + 加 1 只 → 列表更新 → 详情正确
+- [x] 9.4 再次新建同名"宽基核心 2" → 409 提示
+- [x] 9.5 删除池 → confirm → 列表移除
+- [x] 9.6 浏览器到 `/backtest` → 切"使用策略池" → 选"宽基核心 2" → checkbox 全自动勾且锁定 → 提交 → 跑回测
+- [x] 9.7 切回"自定义" → 之前自定义勾选恢复（如果有）
+
+> 注：9.6 的回测实跑受限于 akshare 行情同步失败（已记录的后端 issue），仅验证了后端接收 `pool_id` 字段、池成员正确填充到 `etf_pool`，价格数据 422 由预存问题引起。

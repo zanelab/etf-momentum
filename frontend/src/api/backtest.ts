@@ -4,6 +4,7 @@ export type RebalanceFreq = "monthly" | "quarterly";
 
 export interface BacktestRequest {
   etf_pool: string[];
+  pool_id?: number | null;
   start: string;
   end: string;
   initial_cash: string;
