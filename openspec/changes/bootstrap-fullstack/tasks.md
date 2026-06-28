@@ -29,13 +29,13 @@
 
 ## 4. Screening core migration (M2, TDD mandatory)
 
-- [ ] 4.1 StrategyParams and ScreeningContext Pydantic models
-- [ ] 4.2 filter_etfs() pure-function signature
-- [ ] 4.3 Dual-MA filter logic
-- [ ] 4.4 Momentum scoring (weighted log regression + R²)
-- [ ] 4.5 Industry diversification selection
-- [ ] 4.6 Unit tests for all branches
-- [ ] 4.7 Parity test: original main.py vs new implementation
+- [x] 4.1 StrategyParams and ScreeningContext Pydantic models
+- [x] 4.2 filter_etfs() pure-function signature
+- [x] 4.3 Dual-MA filter logic
+- [x] 4.4 Momentum scoring (weighted log regression + R²)
+- [x] 4.5 Industry diversification selection
+- [x] 4.6 Unit tests for all branches
+- [x] 4.7 Parity test: original main.py vs new implementation
 
 ## 5. Daily signals & portfolio API (M3)
 

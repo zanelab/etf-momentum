@@ -35,13 +35,13 @@
 
 ## 4. 筛选核心迁移（M2，TDD 强制）
 
-- [ ] 4.1 [后端][TDD] 定义 `StrategyParams`、`ScreeningContext` Pydantic 模型（`backend/app/services/types.py`）
-- [ ] 4.2 [后端][TDD] 迁移 `filter_etfs()` 签名：`filter_etfs(as_of, static_pool, dynamic_pool, themes, params, market) -> list[str]`
-- [ ] 4.3 [后端][TDD] 迁移双均线过滤逻辑（`backend/app/services/screening.py`）
-- [ ] 4.4 [后端][TDD] 迁移动量评分逻辑（加权对数回归 + R²）
-- [ ] 4.5 [后端][TDD] 迁移行业分散选取逻辑（含兜底补齐）
-- [ ] 4.6 [后端][TDD] 单测覆盖：无目标、行业分散、动量异常值、成交量过滤、防御 ETF 排除
-- [ ] 4.7 [后端] 对照测试：3 组 fixture 输入，原 `main.py`（带 shim 适配）vs 新实现，结果一致
+- [x] 4.1 [后端][TDD] 定义 `StrategyParams`、`ScreeningContext` Pydantic 模型（`backend/app/services/types.py`）
+- [x] 4.2 [后端][TDD] 迁移 `filter_etfs()` 签名：`filter_etfs(as_of, static_pool, dynamic_pool, themes, params, market) -> list[str]`
+- [x] 4.3 [后端][TDD] 迁移双均线过滤逻辑（`backend/app/services/screening.py`）
+- [x] 4.4 [后端][TDD] 迁移动量评分逻辑（加权对数回归 + R²）
+- [x] 4.5 [后端][TDD] 迁移行业分散选取逻辑（含兜底补齐）
+- [x] 4.6 [后端][TDD] 单测覆盖：无目标、行业分散、动量异常值、成交量过滤、防御 ETF 排除
+- [x] 4.7 [后端] 对照测试：3 组 fixture 输入，原 `main.py`（带 shim 适配）vs 新实现，结果一致
 
 ## 5. 当日信号与持仓 API（M3）
 
