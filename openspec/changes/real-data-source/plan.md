@@ -34,12 +34,12 @@
 
 ## Backend — 源选择器
 
-- [ ] 6.1 [后端] 新建 `backend/app/data_sources/__init__.py`（`make_source(name=None)`）
-- [ ] 6.2 [后端] 写 `tests/test_make_source.py`：默认 fixture / env=akshare / 显式 name / 未知 name 抛错
-- [ ] 6.3 [后端] 替换 `backend/app/api/market.py` 的 `_market()` 为 `make_source(source)`
-- [ ] 6.4 [后端] 替换 `backend/app/api/screening.py` 的 `_market()` 为 `make_source(source)`
-- [ ] 6.5 [后端] 替换 `backend/app/api/backtest.py` 的 `_market()` 为 `make_source(source)`
-- [ ] 6.6 [后端] 三个 API 路由增加 `source: str | None = None` 参数透传
+- [x] 6.1 [后端] 新建 `backend/app/data_sources/__init__.py`（`make_source(name=None)`）
+- [x] 6.2 [后端] 写 `tests/test_make_source.py`：默认 fixture / env=akshare / 显式 name / 未知 name 抛错
+- [x] 6.3 [后端] 替换 `backend/app/api/market.py` 的 `_market()` 为 `make_source(source)`
+- [x] 6.4 [后端] 替换 `backend/app/api/screening.py` 的 `_market()` 为 `make_source(source)`
+- [x] 6.5 [后端] 替换 `backend/app/api/backtest.py` 的 `_market()` 为 `make_source(source)`
+- [x] 6.6 [后端] 三个 API 路由增加 `source: str | None = None` 参数透传
 
 ## Backend — 动态池 API
 
