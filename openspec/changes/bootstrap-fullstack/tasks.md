@@ -56,9 +56,9 @@
 
 ## 7. Market data API
 
-- [ ] 7.1 GET /api/market/history
-- [ ] 7.2 GET /api/market/list
-- [ ] 7.3 Market API tests
+- [x] 7.1 GET /api/market/history
+- [x] 7.2 GET /api/market/list
+- [x] 7.3 Market API tests
 
 ## 8. Frontend skeleton
 

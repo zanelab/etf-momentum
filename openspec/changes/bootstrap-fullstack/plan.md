@@ -62,9 +62,9 @@
 
 ## 7. 历史数据 API
 
-- [ ] 7.1 [后端][TDD] 实现 `GET /api/market/history`
-- [ ] 7.2 [后端][TDD] 实现 `GET /api/market/list`
-- [ ] 7.3 [后端][TDD] 市场 API 单测
+- [x] 7.1 [后端][TDD] 实现 `GET /api/market/history`
+- [x] 7.2 [后端][TDD] 实现 `GET /api/market/list`
+- [x] 7.3 [后端][TDD] 市场 API 单测
 
 ## 8. 前端项目骨架（M5 准备）
 
