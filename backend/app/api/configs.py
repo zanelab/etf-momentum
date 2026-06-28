@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import delete, select
 
 from app import db as db_module
-from app.data_sources import make_source
+from app.data_sources.akshare_source import AkShareSource
 from app.models.dynamic_pool import DynamicPoolEntry
 from app.models.static_pool import StaticPool
 from app.models.strategy_param import StrategyParam
@@ -23,6 +24,8 @@ from app.schemas import (
     StrategyParams,
     ThemeDictionary,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["configs"])
 
@@ -180,11 +183,42 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
     from `ETF_DATA_SOURCE` so callers do not need to switch the global
     default just to refresh the dynamic pool.
 
+    No fixture fallback: if akshare is unavailable or the call fails, the
+    endpoint returns a 5xx so the caller can distinguish "didn't actually sync"
+    from "synced successfully".
+
     Existing `is_enabled` flags are preserved (sync only refreshes code, name,
     and last_synced_at).
     """
-    source = make_source("akshare")
-    entries = source.all_etf_entries(datetime.utcnow().date())
+    try:
+        # Instantiate directly with no fixtures_dir so failures are NOT
+        # silently masked by a fixture fallback (which would re-introduce
+        # the "static-pool-appears-as-dynamic-pool" confusion).
+        inner = AkShareSource()
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"akshare is not installed. Run "
+                f"`pip install -r backend/requirements-realtime.txt`. ({e})"
+            ),
+        ) from e
+
+    try:
+        entries = inner.all_etf_entries(datetime.utcnow().date())
+    except Exception as e:  # noqa: BLE001 — surface upstream failure
+        log.exception("dynamic pool sync: akshare fetch failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"akshare fetch failed: {e}",
+        ) from e
+
+    if not entries:
+        raise HTTPException(
+            status_code=502,
+            detail="akshare returned an empty ETF list",
+        )
+
     now = datetime.utcnow()
     with db_module.session_scope() as session:
         for code, name in entries:

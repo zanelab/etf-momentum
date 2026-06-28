@@ -210,3 +210,61 @@ def test_sync_ignores_fixture_default(client: TestClient, monkeypatch) -> None:
         assert len(rows) == 1
         assert rows[0].code == "999999.XSHG"
         assert rows[0].name == "全市场ETF"
+
+
+def test_sync_returns_503_when_akshare_not_installed(client: TestClient, monkeypatch) -> None:
+    """When akshare is not importable, sync MUST return 503 with install hint,
+    NOT 500 with a raw ImportError.
+    """
+    # Force _import_akshare() to fail by removing any installed module
+    monkeypatch.delitem(sys.modules, "akshare", raising=False)
+    # Hide the previously-installed fake by ensuring no sys.modules entry resolves
+    # and a re-import raises ImportError.
+
+    class _BlockedAkshare:
+        def find_spec(self, name, path=None, target=None):
+            if name == "akshare" or name.startswith("akshare."):
+                raise ImportError("blocked for test")
+            return None
+
+    monkeypatch.setattr("sys.meta_path", [_BlockedAkshare()])
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 503
+    detail = resp.json()["detail"]
+    assert "akshare is not installed" in detail
+    assert "requirements-realtime.txt" in detail
+
+
+def test_sync_returns_502_when_akshare_call_fails(client: TestClient, monkeypatch) -> None:
+    """When akshare import succeeds but fund_etf_name_em raises, sync MUST
+    return 502 with the upstream error — NOT silently fall back to fixtures.
+    """
+    fake = _inject_fake_akshare(monkeypatch)
+
+    def _boom():
+        raise RuntimeError("network unreachable")
+
+    fake.fund_etf_name_em = _boom
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 502
+    assert "network unreachable" in resp.json()["detail"]
+
+    # Crucially: no rows were inserted despite the upstream failure
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry)).all())
+        assert rows == []
+
+
+def test_sync_returns_502_when_akshare_returns_empty(client: TestClient, monkeypatch) -> None:
+    """akshare succeeded but returned no entries — sync MUST return 502,
+    not 200 with synced=0 (which would silently leave an empty pool)."""
+    fake = _inject_fake_akshare(monkeypatch)
+    import pandas as pd
+
+    fake.fund_etf_name_em = lambda: pd.DataFrame(columns=["基金代码", "基金名称"])
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 502
+    assert "empty" in resp.json()["detail"].lower()
