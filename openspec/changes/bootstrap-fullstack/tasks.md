@@ -47,12 +47,12 @@
 
 ## 6. Backtest engine (M4)
 
-- [ ] 6.1 run_backtest() service
-- [ ] 6.2 Task state file persistence
-- [ ] 6.3 POST /api/backtest with BackgroundTask
-- [ ] 6.4 GET /api/backtest/{task_id}
-- [ ] 6.5 Backtest tests
-- [ ] 6.6 Reject interval > 365 days with 400
+- [x] 6.1 run_backtest() service
+- [x] 6.2 Task state file persistence
+- [x] 6.3 POST /api/backtest with BackgroundTask
+- [x] 6.4 GET /api/backtest/{task_id}
+- [x] 6.5 Backtest tests
+- [x] 6.6 Reject interval > 365 days with 400
 
 ## 7. Market data API
 

@@ -53,12 +53,12 @@
 
 ## 6. 回测引擎（M4）
 
-- [ ] 6.1 [后端][TDD] 实现 `run_backtest()` 服务（`backend/app/services/backtest.py`）：日级重放 + 净值计算 + 统计
-- [ ] 6.2 [后端] 任务状态文件持久化：`backend/data/backtest_tasks/{task_id}.json`
-- [ ] 6.3 [后端][TDD] 实现 `POST /api/backtest`：创建任务 + BackgroundTask 启动
-- [ ] 6.4 [后端][TDD] 实现 `GET /api/backtest/{task_id}`：查询状态/结果
-- [ ] 6.5 [后端][TDD] 回测单测：`backend/tests/test_backtest.py`（小区间，固定结果断言）
-- [ ] 6.6 [后端] 区间超过 1 年返回 400
+- [x] 6.1 [后端][TDD] 实现 `run_backtest()` 服务（`backend/app/services/backtest.py`）：日级重放 + 净值计算 + 统计
+- [x] 6.2 [后端] 任务状态文件持久化：`backend/data/backtest_tasks/{task_id}.json`
+- [x] 6.3 [后端][TDD] 实现 `POST /api/backtest`：创建任务 + BackgroundTask 启动
+- [x] 6.4 [后端][TDD] 实现 `GET /api/backtest/{task_id}`：查询状态/结果
+- [x] 6.5 [后端][TDD] 回测单测：`backend/tests/test_backtest.py`（小区间，固定结果断言）
+- [x] 6.6 [后端] 区间超过 1 年返回 400
 
 ## 7. 历史数据 API
 
