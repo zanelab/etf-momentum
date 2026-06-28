@@ -27,11 +27,11 @@
 
 ## 3. 数据源 + fixture（M2 准备）
 
-- [ ] 3.1 [后端] 定义 `MarketDataSource` Protocol（`backend/app/data_sources/base.py`）
-- [ ] 3.2 [后端][TDD] 实现 `FixtureCSVSource`（`backend/app/data_sources/fixture.py`）
-- [ ] 3.3 [后端] fixture 生成脚本 `backend/scripts/generate_fixtures.py`：为 10 只代表性 ETF 生成 2 年日级 CSV（GBM 模拟 + 真实 ETF 量级噪声）
-- [ ] 3.4 [后端] 生成 fixture 文件，写入 `backend/data/fixtures/`，提交到 git
-- [ ] 3.5 [后端][TDD] 数据源单测：`backend/tests/test_fixture_source.py`
+- [x] 3.1 [后端] 定义 `MarketDataSource` Protocol（`backend/app/data_sources/base.py`）
+- [x] 3.2 [后端][TDD] 实现 `FixtureCSVSource`（`backend/app/data_sources/fixture.py`）
+- [x] 3.3 [后端] fixture 生成脚本 `backend/scripts/generate_fixtures.py`：为 10 只代表性 ETF 生成 2 年日级 CSV（GBM 模拟 + 真实 ETF 量级噪声）
+- [x] 3.4 [后端] 生成 fixture 文件，写入 `backend/data/fixtures/`，提交到 git
+- [x] 3.5 [后端][TDD] 数据源单测：`backend/tests/test_fixture_source.py`
 
 ## 4. 筛选核心迁移（M2，TDD 强制）
 
