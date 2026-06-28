@@ -45,11 +45,11 @@
 
 ## 5. 当日信号与持仓 API（M3）
 
-- [ ] 5.1 [后端][TDD] 实现 `GET /api/screening/today`
-- [ ] 5.2 [后端] mock 持仓数据：`backend/app/services/portfolio_mock.py`（3 只 ETF，含成本价）
-- [ ] 5.3 [后端][TDD] 实现 `GET /api/portfolio`（市值、P&L 计算）
-- [ ] 5.4 [后端][TDD] 实现 `GET /api/signals/today`：基于筛选 + 持仓生成调仓建议（卖出/买入/数量）
-- [ ] 5.5 [后端][TDD] 信号单测：`backend/tests/test_signals.py`
+- [x] 5.1 [后端][TDD] 实现 `GET /api/screening/today`
+- [x] 5.2 [后端] mock 持仓数据：`backend/app/services/portfolio_mock.py`（3 只 ETF，含成本价）
+- [x] 5.3 [后端][TDD] 实现 `GET /api/portfolio`（市值、P&L 计算）
+- [x] 5.4 [后端][TDD] 实现 `GET /api/signals/today`：基于筛选 + 持仓生成调仓建议（卖出/买入/数量）
+- [x] 5.5 [后端][TDD] 信号单测：`backend/tests/test_signals.py`
 
 ## 6. 回测引擎（M4）
 

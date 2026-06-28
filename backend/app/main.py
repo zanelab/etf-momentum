@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import db as db_module
 from app.api.configs import router as configs_router
+from app.api.screening import router as screening_router
 from app.seed import seed_if_empty
 
 
@@ -41,3 +42,4 @@ def health() -> dict[str, str]:
 
 
 app.include_router(configs_router, prefix="/api/configs")
+app.include_router(screening_router, prefix="/api")

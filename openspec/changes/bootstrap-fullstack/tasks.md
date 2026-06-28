@@ -39,11 +39,11 @@
 
 ## 5. Daily signals & portfolio API (M3)
 
-- [ ] 5.1 GET /api/screening/today
-- [ ] 5.2 Mock portfolio data
-- [ ] 5.3 GET /api/portfolio with market value & P&L
-- [ ] 5.4 GET /api/signals/today with rebalance suggestions
-- [ ] 5.5 Signals tests
+- [x] 5.1 GET /api/screening/today
+- [x] 5.2 Mock portfolio data
+- [x] 5.3 GET /api/portfolio with market value & P&L
+- [x] 5.4 GET /api/signals/today with rebalance suggestions
+- [x] 5.5 Signals tests
 
 ## 6. Backtest engine (M4)
 
