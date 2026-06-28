@@ -22,9 +22,9 @@
 
 ## Backend — AkShare 适配器
 
-- [ ] 4.1 [后端] 新建 `backend/app/data_sources/akshare_source.py`（`AkShareSource`，字段映射，降级）
-- [ ] 4.2 [后端] 写 `tests/test_akshare_source.py`（mock akshare）：history 字段映射、snapshot 取末行、all_etfs 列表、未装包抛 ImportError、失败降级
-- [ ] 4.3 [后端] 在 `pyproject.toml` 加 `akshare` 为可选依赖（`[project.optional-dependencies] realtime = ["akshare>=1.16"]`）
+- [x] 4.1 [后端] 新建 `backend/app/data_sources/akshare_source.py`（`AkShareSource`，字段映射，降级）
+- [x] 4.2 [后端] 写 `tests/test_akshare_source.py`（mock akshare）：history 字段映射、snapshot 取末行、all_etfs 列表、未装包抛 ImportError、失败降级
+- [x] 4.3 [后端] 在 `pyproject.toml` 加 `akshare` 为可选依赖（`[project.optional-dependencies] realtime = ["akshare>=1.16"]`）
 
 ## Backend — 缓存装饰器
 
