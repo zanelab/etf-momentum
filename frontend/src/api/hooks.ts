@@ -93,6 +93,25 @@ export type MarketHistoryResponse = {
   rows: { date: string; [k: string]: number | string | null }[];
 };
 
+export type DataSourceStats = {
+  status: "ok";
+  cache_hit?: number;
+  cache_miss?: number;
+};
+
+export type DynamicPoolEntry = {
+  code: string;
+  name: string;
+  is_enabled: boolean;
+  last_synced_at: string;
+};
+
+export type DynamicPoolSyncResult = {
+  synced: number;
+  total: number;
+  enabled: number;
+};
+
 // ────────────── Configs ──────────────
 
 export function usePool() {
@@ -255,5 +274,49 @@ export function useMarketHistory(
       );
     },
     enabled: !!code,
+  });
+}
+
+// ────────────── Data source / dynamic pool ──────────────
+
+export function useHealthStats() {
+  return useQuery({
+    queryKey: ["health-stats"],
+    queryFn: () => api<DataSourceStats>("/api/health?stats=1"),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useDynamicPool() {
+  return useQuery({
+    queryKey: ["dynamic-pool"],
+    queryFn: () => api<DynamicPoolEntry[]>("/api/configs/pool/dynamic"),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useSyncDynamicPool() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api<DynamicPoolSyncResult>("/api/configs/pool/dynamic/sync", {
+        method: "POST",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-pool"] }),
+  });
+}
+
+export function useToggleDynamicEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, isEnabled }: { code: string; isEnabled: boolean }) =>
+      api<DynamicPoolEntry>(
+        `/api/configs/pool/dynamic/${encodeURIComponent(code)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ is_enabled: isEnabled }),
+        },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-pool"] }),
   });
 }

@@ -55,10 +55,10 @@
 
 ## Frontend — DataSource 页面
 
-- [ ] 9.1 [前端] 在 `frontend/src/api/hooks.ts` 添加 `useHealthStats`、`useDynamicPool`、`useSyncDynamicPool`、`useToggleDynamicEntry` hooks
-- [ ] 9.2 [前端] 新建 `frontend/src/pages/DataSource.tsx`：源类型 / 末次同步 / 缓存命中统计 / 同步按钮 / 动态池列表
-- [ ] 9.3 [前端] 在 `frontend/src/App.tsx` 增加 `/datasource` 路由与导航项
-- [ ] 9.4 [前端] 在 `frontend/src/api/client.ts` 暴露 `DataSourceStats`、`DynamicPoolEntry` 类型
+- [x] 9.1 [前端] 在 `frontend/src/api/hooks.ts` 添加 `useHealthStats`、`useDynamicPool`、`useSyncDynamicPool`、`useToggleDynamicEntry` hooks
+- [x] 9.2 [前端] 新建 `frontend/src/pages/DataSource.tsx`：源类型 / 末次同步 / 缓存命中统计 / 同步按钮 / 动态池列表
+- [x] 9.3 [前端] 在 `frontend/src/App.tsx` 增加 `/datasource` 路由与导航项
+- [x] 9.4 [前端] 在 `frontend/src/api/client.ts` 暴露 `DataSourceStats`、`DynamicPoolEntry` 类型
 
 ## Testing — 集成与回归
 

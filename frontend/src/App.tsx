@@ -2,6 +2,7 @@
 import { Link, Route, Routes } from "react-router-dom";
 
 import Backtest from "@/pages/Backtest";
+import DataSource from "@/pages/DataSource";
 import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
 import Portfolio from "@/pages/Portfolio";
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/portfolio", label: "持仓" },
   { to: "/backtest", label: "回测" },
   { to: "/history", label: "历史数据" },
+  { to: "/datasource", label: "数据源" },
 ];
 
 export default function App() {
@@ -48,6 +50,7 @@ export default function App() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/backtest" element={<Backtest />} />
           <Route path="/history" element={<History />} />
+          <Route path="/datasource" element={<DataSource />} />
         </Routes>
       </main>
     </div>
