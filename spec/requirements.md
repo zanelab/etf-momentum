@@ -36,9 +36,17 @@
 
 - **API 风格**：RESTful，JSON over HTTP
 - **数据存储**：配置数据可用关系型 DB（SQLite 起步，便于后续迁移 Postgres）；行情/回测结果历史可入库
-- **数据源**：抽象数据源接口（`MarketDataSource`），至少实现一个 mock/本地数据源；行情接入留待后续
+- **数据源**：抽象数据源接口（`MarketDataSource`），至少实现一个 mock/本地数据源 + 一个真实源（akshare）；通过 `make_source(name)` 工厂按 `ETF_DATA_SOURCE` 环境变量或 per-request 参数切换；akshare 路径自动缓存
 - **回测**：后端串行执行，避免阻塞 API（可用异步任务或同步短任务）
 - **测试**：核心筛选逻辑必须有单测覆盖（TDD 强制，参见 AGENTS.md）
+- **动态池管理**：用户可拉取 akshare 全市场 ETF 列表入本地表，勾选启用哪些进入筛选；同步失败必须返回明确错误（不可静默回退）
+
+## 数据源切换与缓存（real-data-source 2026-06-29）
+
+- **数据源**：`ETF_DATA_SOURCE` 环境变量决定默认源（`fixture` / `akshare`）；也支持 `?source=akshare` per-request 覆盖（行情、筛选、信号、回测接口均接受）
+- **akshare 缓存**：`CachedSource(AkShareSource)` 自动写入 SQLite `market_bar_cache` 表；hits / misses 由 `/api/health?stats=1` 暴露
+- **动态池同步**：`POST /api/configs/pool/dynamic/sync` 必须走 akshare（不受 `ETF_DATA_SOURCE` 影响）；返回 200 `{synced, total, enabled}` / 503 akshare 缺失 / 502 akshare 拉取失败
+- **前端面板**：`/datasource` 页面展示健康状态、缓存命中统计、动态池列表与同步按钮
 
 ## 待用户确认
 

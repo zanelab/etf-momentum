@@ -13,6 +13,7 @@
 | M6 | 前端信号与持仓页 | ✅ 完成 |
 | M7 | 前端回测页 | ✅ 完成 |
 | M8 | 收盘数据同步（mock） | ✅ 完成 |
+| M9 | 真实数据源接入（akshare + 缓存 + 动态池） | ✅ 完成 |
 
 ## 详细任务
 
@@ -78,6 +79,23 @@
 - [x] `daily_sync.sync_today(target_date)` 读 fixture 末条写入 `backend/data/daily_sync/YYYY-MM-DD.json`
 - [x] 当前以 fixture 末日作为 "today"（生产应替换为真实交易日历）
 
+### M9 真实数据源接入（real-data-source 2026-06-29）
+
+- [x] `make_source(name)` 工厂 + `ETF_DATA_SOURCE` 环境变量 + per-request `?source=` 参数
+- [x] `AkShareSource` 适配（`fund_etf_hist_em` + `fund_etf_spot_em`，中文列名映射，指数退避重试，fixture 降级）
+- [x] `CachedSource` 读穿透缓存 + SQLite `market_bar_cache` 表 + `stats()` / `clear()`
+- [x] `retry_with_backoff` 工具
+- [x] `DynamicPoolEntry` 模型 + 3 个动态池端点（list / sync / patch）
+- [x] sync 强制走 akshare，失败返回 503/502 明确错误
+- [x] `/api/health?stats=1` 暴露缓存命中统计
+- [x] 前端 `/datasource` 页面（健康 + 缓存统计 + 动态池列表 + 同步按钮 + 行内启用）
+- [x] 单测：新增 8 个测试文件 / 42 个用例（116 总数）
+- [x] ruff / tsc / vite build 全绿
+
 ## 当前迭代
 
-所有 M0–M8 里程碑已完成并归档（`openspec/changes/archive/bootstrap-fullstack-20260628/`）。下一迭代可在新变更中启动。
+所有 M0–M9 里程碑已完成并归档（`bootstrap-fullstack-20260628/` + `real-data-source-20260629/`）。下一迭代可在新变更中启动，例如：
+
+- 动态池定时同步（cron 或 APScheduler）
+- akshare 代码归一化（6 位裸码 ↔ `XXXXXX.XSHG/XSHE`）以合并 static/dynamic pool
+- akshare `fund_etf_spot_em` 真实调用集成测试（mock 当前绕过网络）
