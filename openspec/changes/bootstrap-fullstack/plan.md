@@ -16,14 +16,14 @@
 
 ## 2. 后端骨架（M1）
 
-- [ ] 2.1 [后端][TDD] 创建 `backend/app/main.py`：FastAPI 实例 + CORS + `/api/health`
-- [ ] 2.2 [后端][TDD] 创建 SQLModel 模型：`StaticPool`、`ThemeKeyword`、`StrategyParam`（`backend/app/models/`）
-- [ ] 2.3 [后端] 创建 `backend/app/db.py`：engine + session + 初始化逻辑
-- [ ] 2.4 [后端] 创建 `backend/app/seed.py`：首次启动时种入默认数据（静态池 ~145 只、主题词典 17 类、策略参数）
-- [ ] 2.5 [后端][TDD] 实现 `GET/POST/PUT/DELETE /api/configs/pool`（`backend/app/api/configs.py`）
-- [ ] 2.6 [后端][TDD] 实现 `GET/PUT /api/configs/themes`
-- [ ] 2.7 [后端][TDD] 实现 `GET/PUT /api/configs/strategy`
-- [ ] 2.8 [后端][TDD] 配置 API 单测：`backend/tests/test_configs.py`
+- [x] 2.1 [后端][TDD] 创建 `backend/app/main.py`：FastAPI 实例 + CORS + `/api/health`
+- [x] 2.2 [后端][TDD] 创建 SQLModel 模型：`StaticPool`、`ThemeKeyword`、`StrategyParam`（`backend/app/models/`）
+- [x] 2.3 [后端] 创建 `backend/app/db.py`：engine + session + 初始化逻辑
+- [x] 2.4 [后端] 创建 `backend/app/seed.py`：首次启动时种入默认数据（静态池 ~145 只、主题词典 17 类、策略参数）
+- [x] 2.5 [后端][TDD] 实现 `GET/POST/PUT/DELETE /api/configs/pool`（`backend/app/api/configs.py`）
+- [x] 2.6 [后端][TDD] 实现 `GET/PUT /api/configs/themes`
+- [x] 2.7 [后端][TDD] 实现 `GET/PUT /api/configs/strategy`
+- [x] 2.8 [后端][TDD] 配置 API 单测：`backend/tests/test_configs.py`
 
 ## 3. 数据源 + fixture（M2 准备）
 
