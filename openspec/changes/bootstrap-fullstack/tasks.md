@@ -62,35 +62,35 @@
 
 ## 8. Frontend skeleton
 
-- [ ] 8.1 Vite proxy /api to localhost:8000
-- [ ] 8.2 src/api/client.ts fetch wrapper
-- [ ] 8.3 src/api/hooks.ts TanStack Query hooks
-- [ ] 8.4 React Router structure
-- [ ] 8.5 AppShell with navigation
+- [x] 8.1 Vite proxy /api to localhost:8000
+- [x] 8.2 src/api/client.ts fetch wrapper
+- [x] 8.3 src/api/hooks.ts TanStack Query hooks
+- [x] 8.4 React Router structure
+- [x] 8.5 AppShell with navigation
 
 ## 9. Frontend config pages (M5)
 
-- [ ] 9.1 PoolConfig.tsx with Table + dialog
-- [ ] 9.2 ThemeConfig.tsx with grouped editor
-- [ ] 9.3 StrategyConfig.tsx with Form
-- [ ] 9.4 Hook all three to API
+- [x] 9.1 PoolConfig.tsx with Table + dialog
+- [x] 9.2 ThemeConfig.tsx with grouped editor
+- [x] 9.3 StrategyConfig.tsx with Form
+- [x] 9.4 Hook all three to API
 
 ## 10. Frontend signals & portfolio (M6)
 
-- [ ] 10.1 Signals.tsx with sell/buy cards + 5s polling
-- [ ] 10.2 Portfolio.tsx with Table + Statistic + 5s polling
+- [x] 10.1 Signals.tsx with sell/buy cards + 5s polling
+- [x] 10.2 Portfolio.tsx with Table + Statistic + 5s polling
 
 ## 11. Frontend backtest (M7)
 
-- [ ] 11.1 Install chart library (recharts)
-- [ ] 11.2 Backtest.tsx with DatePicker + submit + 2s polling
-- [ ] 11.3 NAV curve component
-- [ ] 11.4 Stats cards
+- [x] 11.1 Install chart library (recharts)
+- [x] 11.2 Backtest.tsx with DatePicker + submit + 2s polling
+- [x] 11.3 NAV curve component
+- [x] 11.4 Stats cards
 
 ## 12. Frontend market history
 
-- [ ] 12.1 History.tsx with K-line chart
-- [ ] 12.2 Code selector input
+- [x] 12.1 History.tsx with K-line chart
+- [x] 12.2 Code selector input
 
 ## 13. Daily sync (mock)
 

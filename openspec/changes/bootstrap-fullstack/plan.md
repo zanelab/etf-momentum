@@ -68,35 +68,35 @@
 
 ## 8. 前端项目骨架（M5 准备）
 
-- [ ] 8.1 [前端] 配置 vite.config.ts 代理 `/api` 到 `http://localhost:8000`
-- [ ] 8.2 [前端] 创建 `src/api/client.ts`：fetch 封装 + 错误处理
-- [ ] 8.3 [前端] 创建 `src/api/hooks.ts`：TanStack Query hooks（usePool, useThemes, useStrategy, useSignals, usePortfolio, useBacktest, useMarket）
-- [ ] 8.4 [前端] 创建路由结构（react-router-dom）：/pool, /themes, /strategy, /signals, /portfolio, /backtest, /history
-- [ ] 8.5 [前端] 创建 AppShell：导航 + 主题（shadcn）
+- [x] 8.1 [前端] 配置 vite.config.ts 代理 `/api` 到 `http://localhost:8000`
+- [x] 8.2 [前端] 创建 `src/api/client.ts`：fetch 封装 + 错误处理
+- [x] 8.3 [前端] 创建 `src/api/hooks.ts`：TanStack Query hooks（usePool, useThemes, useStrategy, useSignals, usePortfolio, useBacktest, useMarket）
+- [x] 8.4 [前端] 创建路由结构（react-router-dom）：/pool, /themes, /strategy, /signals, /portfolio, /backtest, /history
+- [x] 8.5 [前端] 创建 AppShell：导航 + 主题（shadcn）
 
 ## 9. 前端配置面板（M5）
 
-- [ ] 9.1 [前端] PoolConfig.tsx — Table + 新增对话框 + 启用/禁用 toggle + 删除
-- [ ] 9.2 [前端] ThemeConfig.tsx — 主题分组编辑（accordion 或 tabs）
-- [ ] 9.3 [前端] StrategyConfig.tsx — Form（数值输入 + 开关 + select）
-- [ ] 9.4 [前端] 三个页面调用对应 API hook，错误用 toast 提示
+- [x] 9.1 [前端] PoolConfig.tsx — Table + 新增对话框 + 启用/禁用 toggle + 删除
+- [x] 9.2 [前端] ThemeConfig.tsx — 主题分组编辑（accordion 或 tabs）
+- [x] 9.3 [前端] StrategyConfig.tsx — Form（数值输入 + 开关 + select）
+- [x] 9.4 [前端] 三个页面调用对应 API hook，错误用 toast 提示
 
 ## 10. 前端信号与持仓（M6）
 
-- [ ] 10.1 [前端] Signals.tsx — 卖/买卡片（reason 标签、目标数量）+ 轮询 5s
-- [ ] 10.2 [前端] Portfolio.tsx — Table + Statistic（总市值、总盈亏）+ 轮询 5s
+- [x] 10.1 [前端] Signals.tsx — 卖/买卡片（reason 标签、目标数量）+ 轮询 5s
+- [x] 10.2 [前端] Portfolio.tsx — Table + Statistic（总市值、总盈亏）+ 轮询 5s
 
 ## 11. 前端回测（M7）
 
-- [ ] 11.1 [前端] 安装图表库（recharts 或 lightweight-charts）
-- [ ] 11.2 [前端] Backtest.tsx — DatePicker + 提交按钮 + 进度轮询 2s
-- [ ] 11.3 [前端] 净值曲线组件（双曲线：本策略 vs 基准）
-- [ ] 11.4 [前端] 统计指标卡片（total_return, sharpe, max_drawdown）
+- [x] 11.1 [前端] 安装图表库（recharts 或 lightweight-charts）
+- [x] 11.2 [前端] Backtest.tsx — DatePicker + 提交按钮 + 进度轮询 2s
+- [x] 11.3 [前端] 净值曲线组件（双曲线：本策略 vs 基准）
+- [x] 11.4 [前端] 统计指标卡片（total_return, sharpe, max_drawdown）
 
 ## 12. 前端历史数据
 
-- [ ] 12.1 [前端] History.tsx — 单只 ETF K 线图 + 成交额
-- [ ] 12.2 [前端] 输入框选择 ETF code
+- [x] 12.1 [前端] History.tsx — 单只 ETF K 线图 + 成交额
+- [x] 12.2 [前端] 输入框选择 ETF code
 
 ## 13. 收盘同步（mock 实现）
 
