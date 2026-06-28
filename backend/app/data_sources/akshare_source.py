@@ -27,6 +27,7 @@ _HIST_COL_MAP = {
 }
 
 _NAME_COL_CODE = "基金代码"
+_NAME_COL_NAME = "基金名称"
 
 
 def _import_akshare():
@@ -132,14 +133,22 @@ class AkShareSource(MarketDataSource):
         }
 
     def all_etfs(self, as_of: date_cls) -> list[str]:
+        return [code for code, _ in self.all_etf_entries(as_of)]
+
+    def all_etf_entries(self, as_of: date_cls) -> list[tuple[str, str]]:
         akshare = _import_akshare()
         df = self._call(lambda: akshare.fund_etf_name_em())
         if df is None or df.empty:
             if self._fallback is not None:
-                return self._fallback.all_etfs(as_of)
+                return self._fallback.all_etf_entries(as_of)
             return []
         if _NAME_COL_CODE not in df.columns:
             if self._fallback is not None:
-                return self._fallback.all_etfs(as_of)
+                return self._fallback.all_etf_entries(as_of)
             return []
-        return df[_NAME_COL_CODE].astype(str).tolist()
+        codes = df[_NAME_COL_CODE].astype(str)
+        if _NAME_COL_NAME in df.columns:
+            names = df[_NAME_COL_NAME].astype(str)
+        else:
+            names = codes  # fallback if name column missing
+        return list(zip(codes.tolist(), names.tolist()))

@@ -43,10 +43,10 @@
 
 ## Backend — 动态池 API
 
-- [ ] 7.1 [后端] 在 `backend/app/api/configs.py` 新增 `GET /api/configs/pool/dynamic`（列出所有 DynamicPoolEntry）
-- [ ] 7.2 [后端] 新增 `POST /api/configs/pool/dynamic/sync`（拉 akshare、UPSERT）
-- [ ] 7.3 [后端] 新增 `PATCH /api/configs/pool/dynamic/{code}`（toggle is_enabled）
-- [ ] 7.4 [后端] 写 `tests/test_dynamic_pool_api.py`：list/sync (mock akshare)/patch 启用与 404
+- [x] 7.1 [后端] 在 `backend/app/api/configs.py` 新增 `GET /api/configs/pool/dynamic`（列出所有 DynamicPoolEntry）
+- [x] 7.2 [后端] 新增 `POST /api/configs/pool/dynamic/sync`（拉 akshare、UPSERT）
+- [x] 7.3 [后端] 新增 `PATCH /api/configs/pool/dynamic/{code}`（toggle is_enabled）
+- [x] 7.4 [后端] 写 `tests/test_dynamic_pool_api.py`：list/sync (mock akshare)/patch 启用与 404
 
 ## Backend — Health & 缓存观测
 

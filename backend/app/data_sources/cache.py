@@ -199,3 +199,6 @@ class CachedSource(MarketDataSource):
 
     def all_etfs(self, as_of: date_cls) -> list[str]:
         return self._inner.all_etfs(as_of)
+
+    def all_etf_entries(self, as_of: date_cls) -> list[tuple[str, str]]:
+        return self._inner.all_etf_entries(as_of)

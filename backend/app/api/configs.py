@@ -8,10 +8,15 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import delete, select
 
 from app import db as db_module
+from app.data_sources import make_source
+from app.models.dynamic_pool import DynamicPoolEntry
 from app.models.static_pool import StaticPool
 from app.models.strategy_param import StrategyParam
 from app.models.theme_keyword import ThemeKeyword
 from app.schemas import (
+    DynamicPoolEntryOut,
+    DynamicPoolSyncResult,
+    DynamicPoolUpdate,
     StaticPoolEntry,
     StaticPoolReplace,
     StaticPoolUpdate,
@@ -152,3 +157,68 @@ def update_strategy(body: StrategyParams) -> StrategyParams:
             except json.JSONDecodeError:
                 merged[row.key] = row.value_json
         return StrategyParams(params=merged)
+
+
+# ────────────── Dynamic Pool ──────────────
+
+
+@router.get("/pool/dynamic", response_model=list[DynamicPoolEntryOut])
+def list_dynamic_pool() -> list[DynamicPoolEntryOut]:
+    with db_module.session_scope() as session:
+        rows = list(
+            session.exec(select(DynamicPoolEntry).order_by(DynamicPoolEntry.code)).all()
+        )
+        return [DynamicPoolEntryOut.model_validate(r) for r in rows]
+
+
+@router.post("/pool/dynamic/sync", response_model=DynamicPoolSyncResult)
+def sync_dynamic_pool() -> DynamicPoolSyncResult:
+    """Pull the full ETF universe from the active source and UPSERT rows.
+
+    Existing `is_enabled` flags are preserved (sync only refreshes code, name,
+    and last_synced_at).
+    """
+    source = make_source()  # uses ETF_DATA_SOURCE env var
+    entries = source.all_etf_entries(datetime.utcnow().date())
+    now = datetime.utcnow()
+    with db_module.session_scope() as session:
+        for code, name in entries:
+            existing = session.get(DynamicPoolEntry, code)
+            if existing is None:
+                session.add(
+                    DynamicPoolEntry(
+                        code=code,
+                        name=name,
+                        is_enabled=False,
+                        last_synced_at=now,
+                    )
+                )
+            else:
+                existing.name = name
+                existing.last_synced_at = now
+                session.add(existing)
+        enabled = len(
+            list(
+                session.exec(
+                    select(DynamicPoolEntry).where(DynamicPoolEntry.is_enabled.is_(True))
+                ).all()
+            )
+        )
+        total = len(entries)
+        return DynamicPoolSyncResult(synced=total, total=total, enabled=enabled)
+
+
+@router.patch("/pool/dynamic/{code}", response_model=DynamicPoolEntryOut)
+def patch_dynamic_pool(code: str, body: DynamicPoolUpdate) -> DynamicPoolEntryOut:
+    with db_module.session_scope() as session:
+        entry = session.get(DynamicPoolEntry, code)
+        if entry is None:
+            raise HTTPException(
+                status_code=404, detail=f"DynamicPoolEntry not found: {code}"
+            )
+        if body.is_enabled is not None:
+            entry.is_enabled = body.is_enabled
+        session.add(entry)
+        session.flush()
+        session.refresh(entry)
+        return DynamicPoolEntryOut.model_validate(entry)

@@ -69,3 +69,7 @@ class FixtureCSVSource(MarketDataSource):
             for p in self.fixtures_dir.glob("*.csv")
             if p.is_file()
         )
+
+    def all_etf_entries(self, as_of: date) -> list[tuple[str, str]]:
+        # Fixtures lack name metadata; use code as a placeholder.
+        return [(c, c) for c in self.all_etfs(as_of)]

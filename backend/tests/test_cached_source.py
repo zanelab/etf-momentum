@@ -58,6 +58,9 @@ class _StubSource(MarketDataSource):
     def all_etfs(self, as_of):
         return ["510300.XSHG", "510500.XSHG"]
 
+    def all_etf_entries(self, as_of):
+        return [(c, c) for c in self.all_etfs(as_of)]
+
 
 def _make_cached() -> tuple[CachedSource, _StubSource]:
     init_db()
