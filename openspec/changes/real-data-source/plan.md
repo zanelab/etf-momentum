@@ -17,8 +17,8 @@
 
 ## Backend — 韧性工具
 
-- [ ] 3.1 [后端] 新建 `backend/app/data_sources/retry.py`（`retry_with_backoff(fn, max_retries, backoff_factor, initial_delay)`）
-- [ ] 3.2 [后端] 写 `tests/test_retry.py`：成功路径、瞬时失败后成功、全失败抛错、退避次数正确
+- [x] 3.1 [后端] 新建 `backend/app/data_sources/retry.py`（`retry_with_backoff(fn, max_retries, backoff_factor, initial_delay)`）
+- [x] 3.2 [后端] 写 `tests/test_retry.py`：成功路径、瞬时失败后成功、全失败抛错、退避次数正确
 
 ## Backend — AkShare 适配器
 
