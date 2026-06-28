@@ -196,13 +196,7 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
         # the "static-pool-appears-as-dynamic-pool" confusion).
         inner = AkShareSource()
     except ImportError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                f"akshare is not installed. Run "
-                f"`pip install -r backend/requirements-realtime.txt`. ({e})"
-            ),
-        ) from e
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
     try:
         entries = inner.all_etf_entries(datetime.utcnow().date())

@@ -7,6 +7,7 @@ import {
   useSyncDynamicPool,
   useToggleDynamicEntry,
 } from "@/api/hooks";
+import { ApiError } from "@/api/client";
 
 export default function DataSource() {
   const stats = useHealthStats();
@@ -100,7 +101,7 @@ export default function DataSource() {
         )}
         {sync.isError && (
           <p className="mt-2 text-xs text-red-600">
-            同步失败：{String(sync.error)}
+            同步失败：{formatError(sync.error)}
           </p>
         )}
       </div>
@@ -170,4 +171,9 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
   );
+}
+
+function formatError(err: unknown): string {
+  if (err instanceof ApiError) return err.detail;
+  return String(err);
 }
