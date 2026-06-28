@@ -14,7 +14,7 @@ def _install_fake_akshare(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     AkShareSource.__init__ resolves without the real library."""
     fake = ModuleType("akshare")
     fake.fund_etf_hist_em = lambda *a, **kw: pd.DataFrame()  # default
-    fake.fund_etf_name_em = lambda *a, **kw: pd.DataFrame()
+    fake.fund_etf_spot_em = lambda *a, **kw: pd.DataFrame()
     monkeypatch.setitem(__import__("sys").modules, "akshare", fake)
     return fake
 
@@ -110,11 +110,12 @@ def test_akshare_snapshot_returns_last_bar_dict(
 
 
 def test_akshare_all_etfs_returns_code_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    """fund_etf_spot_em() returns columns 代码/名称 (East Money)."""
     fake = _install_fake_akshare(monkeypatch)
-    fake.fund_etf_name_em = lambda: pd.DataFrame(
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
         {
-            "基金代码": ["510300", "510500", "159915"],
-            "基金简称": ["沪深300ETF", "中证500ETF", "创业板ETF"],
+            "代码": ["510300", "510500", "159915"],
+            "名称": ["沪深300ETF", "中证500ETF", "创业板ETF"],
         }
     )
     src = AkShareSource()
@@ -136,7 +137,7 @@ def test_akshare_falls_back_to_fixture_on_all_retries_exhausted(
         raise RuntimeError("akshare down")
 
     fake.fund_etf_hist_em = always_fail
-    fake.fund_etf_name_em = always_fail
+    fake.fund_etf_spot_em = always_fail
 
     # Build a fixture with one ETF
     csv_path = tmp_path / "510300.csv"

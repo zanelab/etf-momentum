@@ -26,8 +26,8 @@ _HIST_COL_MAP = {
     "成交额": "money",
 }
 
-_NAME_COL_CODE = "基金代码"
-_NAME_COL_NAME = "基金名称"
+_NAME_COL_CODE = "代码"
+_NAME_COL_NAME = "名称"
 
 
 def _import_akshare():
@@ -137,7 +137,7 @@ class AkShareSource(MarketDataSource):
 
     def all_etf_entries(self, as_of: date_cls) -> list[tuple[str, str]]:
         akshare = _import_akshare()
-        df = self._call(lambda: akshare.fund_etf_name_em())
+        df = self._call(lambda: akshare.fund_etf_spot_em())
         if df is None or df.empty:
             if self._fallback is not None:
                 return self._fallback.all_etf_entries(as_of)

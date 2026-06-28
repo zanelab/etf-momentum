@@ -32,7 +32,7 @@ def client() -> TestClient:
 
 
 def _client_with_akshare_mocked():
-    """Return (client, mock_akshare_module) so tests can configure fund_etf_name_em."""
+    """Return (client, mock_akshare_module) so tests can configure fund_etf_spot_em."""
     if "akshare" not in sys.modules:
         sys.modules["akshare"] = types.ModuleType("akshare")
     return sys.modules["akshare"]
@@ -43,7 +43,7 @@ def _inject_fake_akshare(monkeypatch):
     without the real library installed."""
     fake = types.ModuleType("akshare")
     fake.fund_etf_hist_em = lambda *a, **kw: None
-    fake.fund_etf_name_em = lambda *a, **kw: None
+    fake.fund_etf_spot_em = lambda *a, **kw: None
     monkeypatch.setitem(sys.modules, "akshare", fake)
     return fake
 
@@ -86,8 +86,8 @@ def test_sync_dynamic_pool_inserts_new_rows(client: TestClient, monkeypatch) -> 
     fake = _inject_fake_akshare(monkeypatch)
     import pandas as pd
 
-    fake.fund_etf_name_em = lambda: pd.DataFrame(
-        {"基金代码": ["510300.XSHG", "510500.XSHG", "159915.XSHE"], "基金名称": ["沪深300", "中证500", "创业板"]}
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300.XSHG", "510500.XSHG", "159915.XSHE"], "名称": ["沪深300", "中证500", "创业板"]}
     )
     monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
 
@@ -114,8 +114,8 @@ def test_sync_preserves_existing_is_enabled(client: TestClient, monkeypatch) -> 
     now = datetime(2026, 1, 1, 0, 0, 0)
     with session_scope(get_engine()) as s:
         s.add(DynamicPoolEntry(code="510300.XSHG", name="old name", is_enabled=True, last_synced_at=now))
-    fake.fund_etf_name_em = lambda: pd.DataFrame(
-        {"基金代码": ["510300.XSHG"], "基金名称": ["new name"]}
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300.XSHG"], "名称": ["new name"]}
     )
     monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
 
@@ -140,8 +140,8 @@ def test_sync_returns_enabled_count(client: TestClient, monkeypatch) -> None:
     with session_scope(get_engine()) as s:
         s.add(DynamicPoolEntry(code="A", name="a-old", is_enabled=True, last_synced_at=now))
         s.add(DynamicPoolEntry(code="B", name="b-old", is_enabled=False, last_synced_at=now))
-    fake.fund_etf_name_em = lambda: pd.DataFrame(
-        {"基金代码": ["A", "B"], "基金名称": ["a-new", "b-new"]}
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["A", "B"], "名称": ["a-new", "b-new"]}
     )
     monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
 
@@ -197,8 +197,8 @@ def test_sync_ignores_fixture_default(client: TestClient, monkeypatch) -> None:
 
     # Inject fake akshare so the ak_share branch of make_source can instantiate
     fake = _inject_fake_akshare(monkeypatch)
-    fake.fund_etf_name_em = lambda: pd.DataFrame(
-        {"基金代码": ["999999.XSHG"], "基金名称": ["全市场ETF"]}
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["999999.XSHG"], "名称": ["全市场ETF"]}
     )
     # Default is fixture; sync should still hit akshare
     monkeypatch.setenv("ETF_DATA_SOURCE", "fixture")
@@ -237,7 +237,7 @@ def test_sync_returns_503_when_akshare_not_installed(client: TestClient, monkeyp
 
 
 def test_sync_returns_502_when_akshare_call_fails(client: TestClient, monkeypatch) -> None:
-    """When akshare import succeeds but fund_etf_name_em raises, sync MUST
+    """When akshare import succeeds but fund_etf_spot_em raises, sync MUST
     return 502 with the upstream error — NOT silently fall back to fixtures.
     """
     fake = _inject_fake_akshare(monkeypatch)
@@ -245,7 +245,7 @@ def test_sync_returns_502_when_akshare_call_fails(client: TestClient, monkeypatc
     def _boom():
         raise RuntimeError("network unreachable")
 
-    fake.fund_etf_name_em = _boom
+    fake.fund_etf_spot_em = _boom
 
     resp = client.post("/api/configs/pool/dynamic/sync")
     assert resp.status_code == 502
@@ -263,7 +263,7 @@ def test_sync_returns_502_when_akshare_returns_empty(client: TestClient, monkeyp
     fake = _inject_fake_akshare(monkeypatch)
     import pandas as pd
 
-    fake.fund_etf_name_em = lambda: pd.DataFrame(columns=["基金代码", "基金名称"])
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(columns=["代码", "名称"])
 
     resp = client.post("/api/configs/pool/dynamic/sync")
     assert resp.status_code == 502

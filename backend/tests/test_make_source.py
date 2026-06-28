@@ -22,7 +22,7 @@ def test_make_source_from_env_var(monkeypatch) -> None:
 
     sys.modules["akshare"] = types.ModuleType("akshare")
     sys.modules["akshare"].fund_etf_hist_em = lambda *a, **kw: None
-    sys.modules["akshare"].fund_etf_name_em = lambda *a, **kw: None
+    sys.modules["akshare"].fund_etf_spot_em = lambda *a, **kw: None
     try:
         src = make_source()
         assert isinstance(src, CachedSource)
