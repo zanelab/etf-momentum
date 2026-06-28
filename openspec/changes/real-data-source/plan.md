@@ -8,12 +8,12 @@
 
 ## Backend — 数据模型
 
-- [ ] 2.1 [后端] 新建 `backend/app/models/market_bar_cache.py`（SQLModel `MarketBarCache`，复合主键 `(code, date)`）
-- [ ] 2.2 [后端] 在 `backend/app/models/__init__.py` 注册 `MarketBarCache`
-- [ ] 2.3 [后端] 新建 `backend/app/models/dynamic_pool.py`（SQLModel `DynamicPoolEntry`，主键 `code`）
-- [ ] 2.4 [后端] 在 `backend/app/models/__init__.py` 注册 `DynamicPoolEntry`
-- [ ] 2.5 [后端] 写 `tests/test_market_bar_cache.py`：创建/查询/复合主键唯一性
-- [ ] 2.6 [后端] 写 `tests/test_dynamic_pool_model.py`：创建/查询/is_enabled 默认值
+- [x] 2.1 [后端] 新建 `backend/app/models/market_bar_cache.py`（SQLModel `MarketBarCache`，复合主键 `(code, date)`）
+- [x] 2.2 [后端] 在 `backend/app/models/__init__.py` 注册 `MarketBarCache`
+- [x] 2.3 [后端] 新建 `backend/app/models/dynamic_pool.py`（SQLModel `DynamicPoolEntry`，主键 `code`）
+- [x] 2.4 [后端] 在 `backend/app/models/__init__.py` 注册 `DynamicPoolEntry`
+- [x] 2.5 [后端] 写 `tests/test_market_bar_cache.py`：创建/查询/复合主键唯一性
+- [x] 2.6 [后端] 写 `tests/test_dynamic_pool_model.py`：创建/查询/is_enabled 默认值
 
 ## Backend — 韧性工具
 
