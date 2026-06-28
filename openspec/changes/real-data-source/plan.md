@@ -28,9 +28,9 @@
 
 ## Backend — 缓存装饰器
 
-- [ ] 5.1 [后端] 新建 `backend/app/data_sources/cache.py`（`CachedSource`，复合 `(code, date)` 读写、stats 计数）
-- [ ] 5.2 [后端] 写 `tests/test_cached_source.py`：snapshot 命中/未命中、history 部分命中、stats 计数、clear
-- [ ] 5.3 [后端] 确认 `CachedSource` 复用项目根 `etf_momentum.db`（与 `ETF_DB_PATH` 一致）
+- [x] 5.1 [后端] 新建 `backend/app/data_sources/cache.py`（`CachedSource`，复合 `(code, date)` 读写、stats 计数）
+- [x] 5.2 [后端] 写 `tests/test_cached_source.py`：snapshot 命中/未命中、history 部分命中、stats 计数、clear
+- [x] 5.3 [后端] 确认 `CachedSource` 复用项目根 `etf_momentum.db`（与 `ETF_DB_PATH` 一致）
 
 ## Backend — 源选择器
 
