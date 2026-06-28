@@ -1,18 +1,17 @@
 """Tests for the signals service (sell + buy generation) and related API endpoints."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from app.data_sources.fixture import FixtureCSVSource
 from app.services.portfolio_mock import Holding, get_mock_portfolio
+from app.services.screening import DEFAULT_DEFENSIVE_ETF
 from app.services.signals import (
-    Signal,
     generate_signals,
 )
-from app.services.screening import DEFAULT_DEFENSIVE_ETF
 from app.services.types import StrategyParams
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "data" / "fixtures"

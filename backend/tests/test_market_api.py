@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client():
+    from app import db as db_module
     from app.main import app
     from app.seed import seed_if_empty
-    from app import db as db_module
 
     db_module.init_db()
     seed_if_empty()

@@ -53,11 +53,28 @@ npm run dev
 
 ## 已知限制
 
-- 行情数据源当前为 fixture CSV（10 只代表性 ETF × 2 年日级），无真实市场接入
-- 持仓数据为 mock
-- 认证未启用（仅本地使用）
-- 回测限制单次 ≤ 365 天
+- **行情数据**：mock — `backend/data/fixtures/` 下 10 只代表性 ETF × 500 个交易日（GBM 模拟）。生产接入需要替换 `MarketDataSource` 实现（JoinQuant / Tushare / AkShare）。
+- **持仓数据**：mock — `backend/app/services/portfolio_mock.py` 返回固定的 3 只 ETF（510300、518880、513100）。生产需要对接券商接口。
+- **认证**：未启用（仅本地使用）。
+- **回测窗口**：单次 ≤ 366 天（API 强约束）。
+- **当日数据**：mock 用 fixture 的最后一日作为 "today"；生产应使用真实交易日历。
 
-## 下一步
+## API 端点速查
 
-详见 `spec/tasks.md` 里程碑 M1–M8。
+| 端点 | 方法 | 说明 |
+|---|---|---|
+| `/api/health` | GET | 健康检查 |
+| `/api/configs/pool` | GET / POST / PUT / DELETE | 静态池 CRUD |
+| `/api/configs/themes` | GET / PUT | 主题词典 |
+| `/api/configs/strategy` | GET / PUT | 策略参数 |
+| `/api/screening/today` | GET | 当日筛选目标 |
+| `/api/portfolio` | GET | 当前持仓 + 市值 + 盈亏 |
+| `/api/signals/today` | GET | 当日调仓建议 |
+| `/api/backtest` | POST | 启动回测任务（BackgroundTask） |
+| `/api/backtest/{task_id}` | GET | 查询任务状态/结果 |
+| `/api/market/list` | GET | 所有可用 ETF |
+| `/api/market/history` | GET | 单只 ETF OHLCV（支持字段过滤） |
+
+## 环境变量
+
+见 `backend/.env.example`。

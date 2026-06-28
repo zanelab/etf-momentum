@@ -1,7 +1,6 @@
 """Pytest configuration: isolated SQLite DB per test."""
 from __future__ import annotations
 
-import os
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path

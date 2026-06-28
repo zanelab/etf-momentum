@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date as date_type
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -65,10 +66,13 @@ def _serialize_value(v) -> float | None:
 
 @router.get("/history", response_model=HistoryResponse)
 def market_history(
-    code: str = Query(..., min_length=4),
-    start: date_type = Query(...),
-    end: date_type = Query(...),
-    fields: str | None = Query(None, description="Comma-separated field list"),
+    code: Annotated[str, Query(min_length=4)],
+    start: Annotated[date_type, Query(...)],
+    end: Annotated[date_type, Query(...)],
+    fields: Annotated[
+        str | None,
+        Query(description="Comma-separated field list"),
+    ] = None,
 ) -> HistoryResponse:
     if end < start:
         raise HTTPException(status_code=400, detail="end must be on or after start")
@@ -80,8 +84,8 @@ def market_history(
     market = _market()
     try:
         df = market.history(code, start, end, fields=requested)
-    except DataNotFoundError:
-        raise HTTPException(status_code=404, detail=f"No data for {code}")
+    except DataNotFoundError as err:
+        raise HTTPException(status_code=404, detail=f"No data for {code}") from err
     rows: list[dict] = []
     for ts, row in df.iterrows():
         rec: dict = {"date": ts.strftime("%Y-%m-%d")}

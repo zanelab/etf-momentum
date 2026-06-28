@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any

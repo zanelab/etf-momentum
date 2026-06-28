@@ -1,7 +1,6 @@
 """Backtest HTTP endpoints (POST to create, GET to query)."""
 from __future__ import annotations
 
-import json
 import logging
 from datetime import date
 from pathlib import Path
@@ -12,7 +11,6 @@ from pydantic import BaseModel, Field
 from app.data_sources.fixture import FixtureCSVSource
 from app.services.backtest import run_backtest
 from app.services.backtest_task import (
-    TASK_DIR,
     create_task,
     get_task,
     mark_completed,

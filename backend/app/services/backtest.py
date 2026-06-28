@@ -13,14 +13,17 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from app.data_sources.base import DataNotFoundError, MarketDataSource
-from app.services.screening import DEFAULT_DEFENSIVE_ETF, filter_etfs
+from app.services.screening import filter_etfs
 from app.services.types import StrategyParams
+
+FIXTURES_DIR = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
 
 @dataclass
@@ -51,13 +54,12 @@ class BacktestResult:
     equity_curve: list[dict[str, Any]]  # [{date, nav, daily_return}, ...]
 
 
-def _trading_days(market: MarketDataSource, start: date, end: date) -> list[date]:
+def _trading_days(start: date, end: date) -> list[date]:
     """Return sorted list of trading days in [start, end]."""
-    days: set[date] = set()
-    for csv_path in (FIXTURES_DIR := __import__("pathlib").Path(__file__).resolve().parents[2] / "data" / "fixtures").glob("*.csv"):
-        # Cheap path: read first/last date only
-        import pandas as pd
+    import pandas as pd
 
+    days: set[date] = set()
+    for csv_path in FIXTURES_DIR.glob("*.csv"):
         df = pd.read_csv(csv_path, parse_dates=["date"], usecols=["date"])
         in_window = df[(df["date"] >= pd.Timestamp(start)) & (df["date"] <= pd.Timestamp(end))]
         days.update(in_window["date"].dt.date.tolist())
@@ -120,9 +122,7 @@ def run_backtest(
     display_names: dict[str, str],
     initial_nav: float = 1.0,
 ) -> BacktestResult:
-    from datetime import datetime, time
-
-    days = _trading_days(market, start, end)
+    days = _trading_days(start, end)
     if not days:
         empty = NAVSeries()
         return BacktestResult(
@@ -216,10 +216,16 @@ def run_backtest(
     mdd = _max_drawdown(navs)
 
     nav_series = NAVSeries(dates=dates, navs=navs, daily_returns=daily_returns)
-    equity_curve = [
-        {"date": d.isoformat(), "nav": n, "daily_return": r}
-        for d, n, r in zip(dates, navs, daily_returns)
-    ]
+    assert len(dates) == len(navs) == len(daily_returns)
+    equity_curve: list[dict[str, Any]] = []
+    for i in range(len(dates)):
+        equity_curve.append(
+            {
+                "date": dates[i].isoformat(),
+                "nav": navs[i],
+                "daily_return": daily_returns[i],
+            }
+        )
     stats = BacktestStats(
         initial_nav=initial_nav,
         final_nav=final_nav,

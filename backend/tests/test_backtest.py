@@ -1,9 +1,8 @@
 """Tests for the backtest engine and task lifecycle."""
 from __future__ import annotations
 
-import json
 import time
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -15,16 +14,14 @@ from app.services.backtest import (
     NAVSeries,
     run_backtest,
 )
-from app.services.screening import DEFAULT_DEFENSIVE_ETF
-from app.services.types import StrategyParams
 from app.services.backtest_task import (
-    TASK_DIR,
     create_task,
     get_task,
-    mark_running,
     mark_completed,
     mark_failed,
 )
+from app.services.screening import DEFAULT_DEFENSIVE_ETF
+from app.services.types import StrategyParams
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "data" / "fixtures"
 
@@ -182,9 +179,9 @@ def test_task_get_missing_returns_none(tmp_path: Path, monkeypatch) -> None:
 
 def _client_with_taskdir(monkeypatch, tmp_path: Path):
     monkeypatch.setattr("app.services.backtest_task.TASK_DIR", tmp_path)
+    from app import db as db_module
     from app.main import app
     from app.seed import seed_if_empty
-    from app import db as db_module
 
     db_module.init_db()
     seed_if_empty()

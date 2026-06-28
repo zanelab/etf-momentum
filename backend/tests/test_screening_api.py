@@ -13,9 +13,9 @@ def client():
     fixture rewrites the DB path per test; a module-scoped client would
     outlive its DB file.
     """
+    from app import db as db_module
     from app.main import app
     from app.seed import seed_if_empty
-    from app import db as db_module
 
     db_module.init_db()
     seed_if_empty()

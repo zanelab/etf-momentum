@@ -7,7 +7,6 @@ local fixture CSV source.
 """
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +14,8 @@ import pytest
 
 from app.services.screening import (
     DEFAULT_DEFENSIVE_ETF,
+)
+from app.services.screening import (
     filter_etfs as new_filter_etfs,
 )
 from app.services.types import StrategyParams

@@ -106,20 +106,20 @@
 
 ## 14. 集成验证
 
-- [ ] 14.1 [共享] 后端启动测试：`uvicorn backend.app.main:app`，健康检查返回 200
-- [ ] 14.2 [共享] 前端启动测试：`npm run dev`，所有页面路由可达
-- [ ] 14.3 [共享] 端到端：浏览器打开前端，能配置池子、触发回测、看到结果
-- [ ] 14.4 [共享] 完善 README：启动步骤 + 端口 + 已知限制（mock 数据）
-- [ ] 14.5 [共享] 完善 `.env.example`：列出 `FIXTURES_DIR`、`BACKTEST_TASK_DIR` 等
-- [ ] 14.6 [共享] 验证 `main.py` 头部包含迁移提示注释
+- [x] 14.1 [共享] 后端启动测试：`uvicorn backend.app.main:app`，健康检查返回 200
+- [x] 14.2 [共享] 前端启动测试：`npm run dev`，所有页面路由可达
+- [x] 14.3 [共享] 端到端：浏览器打开前端，能配置池子、触发回测、看到结果
+- [x] 14.4 [共享] 完善 README：启动步骤 + 端口 + 已知限制（mock 数据）
+- [x] 14.5 [共享] 完善 `.env.example`：列出 `FIXTURES_DIR`、`BACKTEST_TASK_DIR` 等
+- [x] 14.6 [共享] 验证 `main.py` 头部包含迁移提示注释
 
 ## 15. CI / 提交前检查
 
-- [ ] 15.1 [后端] `pytest backend/tests/` 通过
-- [ ] 15.2 [后端] `ruff check backend/` 通过
-- [ ] 15.3 [前端] `tsc --noEmit` 通过
-- [ ] 15.4 [前端] `npm run build` 通过
-- [ ] 15.5 [共享] `./scripts/speccoding-tdd.sh check-commit` 通过
+- [x] 15.1 [后端] `pytest backend/tests/` 通过
+- [x] 15.2 [后端] `ruff check backend/` 通过
+- [x] 15.3 [前端] `tsc --noEmit` 通过
+- [x] 15.4 [前端] `npm run build` 通过
+- [x] 15.5 [共享] `./scripts/speccoding-tdd.sh check-commit` 通过
 
 ## 总任务数
 
