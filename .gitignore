@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+.parcel-cache/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# SpecCoding 状态文件（可选，不进 git）
+# 如果要进 git，删掉下面这行
+.speccoding-state.json
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 数据/数据库
+*.db
+*.sqlite
+*.sqlite3
+data/raw/
+data/cache/
+
+# 日志
+*.log
+logs/
