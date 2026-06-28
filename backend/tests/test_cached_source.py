@@ -1,10 +1,7 @@
 """Tests for CachedSource read-through cache decorator."""
 from datetime import date, datetime
-from pathlib import Path
-from types import SimpleNamespace
 
 import pandas as pd
-import pytest
 from sqlmodel import select
 
 from app.data_sources.base import DataNotFoundError, MarketDataSource

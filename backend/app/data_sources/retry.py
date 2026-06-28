@@ -1,6 +1,7 @@
 """Retry helper with exponential backoff for transient data-source failures."""
 import time
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 T = TypeVar("T")
 

@@ -151,4 +151,4 @@ class AkShareSource(MarketDataSource):
             names = df[_NAME_COL_NAME].astype(str)
         else:
             names = codes  # fallback if name column missing
-        return list(zip(codes.tolist(), names.tolist()))
+        return list(zip(codes.tolist(), names.tolist()))  # noqa: B905

@@ -1,21 +1,13 @@
 """Tests for /api/health cache stats extension."""
 from __future__ import annotations
 
-import sys
-import types
-from datetime import datetime
-
-import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
 from app.data_sources import reset_source_cache
-from app.data_sources.akshare_source import AkShareSource
-from app.data_sources.base import DataNotFoundError, MarketDataSource
 from app.data_sources.cache import CachedSource
-from app.db import get_engine, init_db, reset_engine_for_tests, session_scope
+from app.db import get_engine, init_db, reset_engine_for_tests
 from app.main import app
-from app.models.market_bar_cache import MarketBarCache
 
 
 @pytest.fixture(autouse=True)
@@ -38,8 +30,6 @@ def client() -> TestClient:
 def test_health_default_returns_no_cache_stats(client: TestClient) -> None:
     """Default GET /api/health (no ?stats=1) MUST NOT include cache fields,
     even when active source is CachedSource. Backwards compatible."""
-    import app.main as main_module
-    from app.data_sources.cache import CachedSource
 
     # Inject a CachedSource-like marker
     src = CachedSource.__new__(CachedSource)
@@ -62,7 +52,6 @@ def test_health_with_stats_returns_cache_counts(client: TestClient, monkeypatch)
     """Given active source is CachedSource with hit=5, miss=3
     When GET /api/health?stats=1
     Then response MUST include cache_hit=5 and cache_miss=3."""
-    from app.data_sources.cache import CachedSource
     from app.data_sources import _cache
 
     src = CachedSource.__new__(CachedSource)

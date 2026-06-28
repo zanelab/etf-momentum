@@ -13,7 +13,10 @@ extend-exclude = ["data/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+  "E501",  # line length handled by formatter
+  "UP045",  # Optional[X] vs X | None: venv pins py3.9 for typing
+]
 
 [tool.ruff.format]
 quote-style = "double"

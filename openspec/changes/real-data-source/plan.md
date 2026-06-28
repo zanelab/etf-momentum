@@ -62,19 +62,19 @@
 
 ## Testing — 集成与回归
 
-- [ ] 10.1 [共享] 确认 `pytest backend/tests/` 74 个旧用例全部继续通过
-- [ ] 10.2 [后端] `pytest` 至少新增 6 个测试文件（market_bar_cache / dynamic_pool_model / retry / akshare_source / cached_source / make_source / dynamic_pool_api / health_stats）
-- [ ] 10.3 [共享] `ruff check backend/app/ backend/tests/` 通过
-- [ ] 10.4 [前端] `tsc --noEmit` 通过
-- [ ] 10.5 [前端] `npm run build` 通过
+- [x] 10.1 [共享] 确认 `pytest backend/tests/` 74 个旧用例全部继续通过
+- [x] 10.2 [后端] `pytest` 至少新增 6 个测试文件（market_bar_cache / dynamic_pool_model / retry / akshare_source / cached_source / make_source / dynamic_pool_api / health_stats）
+- [x] 10.3 [共享] `ruff check backend/app/ backend/tests/` 通过
+- [x] 10.4 [前端] `tsc --noEmit` 通过
+- [x] 10.5 [前端] `npm run build` 通过
 
 ## Docs
 
-- [ ] 11.1 [共享] 更新 `README.md`：API 端点表新增 3 个动态池端点 + 缓存统计字段
-- [ ] 11.2 [共享] 更新 `README.md` 已知限制段：标注 akshare 接入情况（仍需手动同步、未做定时）
-- [ ] 11.3 [共享] 更新 `.env.example`：新增 `ETF_DATA_SOURCE` 行
+- [x] 11.1 [共享] 更新 `README.md`：API 端点表新增 3 个动态池端点 + 缓存统计字段
+- [x] 11.2 [共享] 更新 `README.md` 已知限制段：标注 akshare 接入情况（仍需手动同步、未做定时）
+- [x] 11.3 [共享] 更新 `.env.example`：新增 `ETF_DATA_SOURCE` 行
 
 ## Submission
 
-- [ ] 12.1 [共享] 提交所有变更到 `feature/real-data-source`
-- [ ] 12.2 [共享] 在 commit message 中标注 `fix:` / `feat:` 前缀
+- [x] 12.1 [共享] 提交所有变更到 `feature/real-data-source`
+- [x] 12.2 [共享] 在 commit message 中标注 `fix:` / `feat:` 前缀

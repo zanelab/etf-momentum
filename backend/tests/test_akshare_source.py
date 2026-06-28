@@ -2,7 +2,6 @@
 from datetime import date, datetime
 from pathlib import Path
 from types import ModuleType
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -24,7 +23,6 @@ def test_akshare_import_error_when_package_missing(monkeypatch: pytest.MonkeyPat
     """If akshare is not importable, AkShareSource() must raise ImportError."""
     # Block the fake install: don't inject, and prevent real import
     import builtins
-    import importlib
     import sys
 
     real_import = builtins.__import__
@@ -129,7 +127,6 @@ def test_akshare_falls_back_to_fixture_on_all_retries_exhausted(
 ) -> None:
     """If akshare fails 4 times (1 + 3 retries) and fallback is configured,
     AkShareSource must delegate to FixtureCSVSource."""
-    import csv
 
     fake = _install_fake_akshare(monkeypatch)
     call_count = {"n": 0}

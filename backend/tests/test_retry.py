@@ -1,5 +1,4 @@
 """Tests for retry_with_backoff helper."""
-from typing import Callable
 
 import pytest
 
