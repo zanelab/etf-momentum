@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import db as db_module
@@ -11,6 +12,8 @@ from app.api.backtest import router as backtest_router
 from app.api.configs import router as configs_router
 from app.api.market import router as market_router
 from app.api.screening import router as screening_router
+from app.data_sources import make_source
+from app.data_sources.cache import CachedSource
 from app.seed import seed_if_empty
 from app.services.daily_sync import sync_today
 
@@ -40,9 +43,25 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    """Liveness probe."""
-    return {"status": "ok"}
+def health(
+    stats: Annotated[
+        int | None,
+        Query(description="When 1 and active source is CachedSource, include hit/miss counters."),
+    ] = None,
+) -> dict:
+    """Liveness probe.
+
+    With `?stats=1`, also reports cache hit/miss counts when the active
+    source is wrapped in CachedSource.
+    """
+    body: dict = {"status": "ok"}
+    if stats == 1:
+        source = make_source()
+        if isinstance(source, CachedSource):
+            counters = source.stats()
+            body["cache_hit"] = counters["hit"]
+            body["cache_miss"] = counters["miss"]
+    return body
 
 
 app.include_router(configs_router, prefix="/api/configs")

@@ -50,8 +50,8 @@
 
 ## Backend — Health & 缓存观测
 
-- [ ] 8.1 [后端] 扩展 `GET /api/health`：当 source 为 CachedSource 时返回 `cache_hit`、`cache_miss`（通过 `?stats=1` 显式启用避免每次都读 counter）
-- [ ] 8.2 [后端] 写 `tests/test_health_stats.py`：fixture 默认不返回 cache stats、akshare + stats=1 返回
+- [x] 8.1 [后端] 扩展 `GET /api/health`：当 source 为 CachedSource 时返回 `cache_hit`、`cache_miss`（通过 `?stats=1` 显式启用避免每次都读 counter）
+- [x] 8.2 [后端] 写 `tests/test_health_stats.py`：fixture 默认不返回 cache stats、akshare + stats=1 返回
 
 ## Frontend — DataSource 页面
 
