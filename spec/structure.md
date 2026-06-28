@@ -23,18 +23,63 @@
 
 ```
 etf-momentum/
-├── main.py                 # 原聚宽策略脚本（待重构）
-├── backend/                # 后端服务（待开发）
-├── frontend/               # React 前端（待开发）
-├── spec/                   # 项目级 Spec
-│   ├── requirements.md     # 整体需求（待补充）
-│   ├── design.md           # 架构设计（待补充）
-│   ├── tasks.md            # 里程碑任务（待补充）
-│   ├── devlog.md           # 开发日志
+├── main.py                 # 原聚宽策略脚本（保留为参考；filter_etfs 已迁移）
+├── backend/                # FastAPI 后端
+│   ├── app/
+│   │   ├── main.py         # FastAPI app + 路由挂载
+│   │   ├── api/            # 路由层
+│   │   │   ├── configs.py      # 池子/词典/参数 CRUD
+│   │   │   ├── screening.py    # 当日筛选 / 持仓 / 信号
+│   │   │   ├── backtest.py     # 回测任务
+│   │   │   └── market.py       # ETF 列表 + OHLCV 历史
+│   │   ├── services/       # 业务服务
+│   │   │   ├── screening.py        # filter_etfs 核心
+│   │   │   ├── signals.py           # 买卖信号生成
+│   │   │   ├── backtest.py          # 日级回放引擎
+│   │   │   ├── backtest_task.py     # JSON 文件任务生命周期
+│   │   │   ├── portfolio_mock.py    # 模拟持仓
+│   │   │   ├── daily_sync.py        # 收盘同步
+│   │   │   └── today.py             # 当日解析 + DB 装载
+│   │   ├── data_sources/   # MarketDataSource 抽象 + FixtureCSVSource
+│   │   ├── models/         # SQLModel 表（static_pool / theme_keyword / strategy_param）
+│   │   ├── schemas.py      # Pydantic 请求/响应模型
+│   │   ├── db.py           # SQLite 初始化 + session_scope
+│   │   └── seed.py         # 默认数据填充
+│   ├── tests/              # pytest（74 用例）
+│   ├── data/
+│   │   ├── fixtures/       # 10 只 ETF × 500 天 GBM mock CSV
+│   │   ├── backtest_tasks/ # 任务 JSON 文件
+│   │   └── daily_sync/     # 收盘摘要 JSON
+│   ├── scripts/generate_fixtures.py
+│   └── pyproject.toml
+├── frontend/               # React + Vite + TS 前端
+│   ├── src/
+│   │   ├── api/            # client.ts + hooks.ts（TanStack Query）
+│   │   ├── pages/          # 7 个页面 + Landing
+│   │   │   ├── PoolConfig.tsx / ThemeConfig.tsx / StrategyConfig.tsx
+│   │   │   ├── Signals.tsx / Portfolio.tsx / Screening.tsx
+│   │   │   ├── Backtest.tsx / History.tsx
+│   │   ├── App.tsx         # 路由
+│   │   └── main.tsx        # 入口
+│   └── package.json
+├── spec/                   # 项目级 Spec（累积式维护）
+│   ├── requirements.md
+│   ├── design.md
+│   ├── tasks.md            # M0–M8 全部 ✅
+│   ├── devlog.md
 │   └── structure.md        # 本文档
-├── openspec/               # OpenSpec 配置
+├── openspec/
+│   ├── config.yaml
 │   ├── specs/              # 长期规格
-│   └── changes/            # 当前变更
-├── AGENTS.md               # 开发规则（待安装）
-└── .speccoding-state.json  # 工作流状态（待创建）
+│   └── changes/
+│       └── archive/
+│           └── bootstrap-fullstack-20260628/  # 本次变更归档
+├── scripts/                # speccoding 工具脚本
+│   ├── speccoding-state.sh
+│   ├── speccoding-gate.sh
+│   ├── speccoding-checkpoint.sh
+│   └── speccoding-tdd.sh
+├── AGENTS.md               # 开发规则
+├── README.md               # 启动步骤 + API + 已知限制
+└── .speccoding-state.json
 ```

@@ -20,6 +20,9 @@ build/
 .vite/
 .parcel-cache/
 .next/
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
 
 # IDE
 .vscode/

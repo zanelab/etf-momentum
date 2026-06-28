@@ -45,3 +45,9 @@
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？
 - 回测粒度：分钟级 / 日级？
 - 部署形态：本地启动 / Docker / 远端？
+
+## 已确认（M0 决议 2026-06-28）
+
+- **数据源**：起步使用 mock（`backend/app/data_sources/fixture.py` 提供 GBM 生成的 10 只代表性 ETF × 500 个交易日的 OHLCV），生产接入通过替换 `MarketDataSource` 实现完成
+- **回测粒度**：日级（API 强约束：单次回测 ≤ 366 天）
+- **部署形态**：本地启动 — 后端 `uvicorn app.main:app --port 8000`，前端 `npm run dev`（Vite 代理 `/api` → `localhost:8000`）

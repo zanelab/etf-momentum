@@ -101,3 +101,11 @@ frontend/
 - **配置存储**：前端写入的池子/词典/参数持久化到 DB，回测时可指定配置快照（避免回测结果随当前配置漂移）
 - **数据源抽象**：所有行情访问通过 `MarketDataSource` 接口，便于从 mock 切换到 akshare/tushare/聚宽
 - **筛选逻辑纯净化**：迁移 `main.py` 的 `filter_etfs()` 时去除对 JoinQuant 全局函数（`history`、`get_current_data` 等）的依赖，改为显式参数注入，便于单测
+
+## 实施调整（M0–M8 bootstrap-fullstack，2026-06-28）
+
+- **持仓聚合**：原设计 `portfolio.py` 路由改为在 `screening.py` 路由内一并暴露 `GET /api/portfolio` 与 `GET /api/signals/today`（聚合 `portfolio_mock` + `signals.generate_signals`，简化模块边界）
+- **同步落盘而非入库**：原设计同步写 DB，改为写 `data/daily_sync/YYYY-MM-DD.json`（轻量；生产可平迁到 DB）
+- **回测任务异步化**：通过 FastAPI `BackgroundTasks` + JSON 文件持久化（`data/backtest_tasks/{task_id}.json`），前端按 2s 轮询 `/api/backtest/{task_id}` 获取状态
+- **JoinQuant 兼容验证**：保留 `main.py` 不动，新增 `tests/_jq_shim.py` 装载原文件并 stub 所有 JQ API，用 3 个对照测试（default / industry-diverse / ma-filter-off）验证迁移后 `filter_etfs` 与原行为一致
+- **前端 UI**：实际采用 Tailwind + 自写小组件替代 shadcn（避免额外工具链），仍满足配置型后台形态

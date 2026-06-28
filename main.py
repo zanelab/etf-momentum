@@ -1,6 +1,10 @@
 # 策略名称: 三部曲吃透ETF动量轮动
 # 特性：静态+动态池融合、行业分散、双均线过滤、止损、防御ETF
 # 修复日期: 2026-04-10
+#
+# ⚠️ 已迁移到全栈版本（参见 openspec/changes/bootstrap-fullstack）。
+# 本文件保留为参考实现；filter_etfs 等函数已被新后端替代。
+# 当前验证：tests/test_screening_parity.py 用本文件做 shim 对照测试。
 
 import datetime
 import math
