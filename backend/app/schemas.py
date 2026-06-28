@@ -1,6 +1,7 @@
 """Pydantic request/response schemas."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,3 +41,22 @@ class StrategyParams(BaseModel):
     """
 
     params: dict[str, Any]
+
+
+class DynamicPoolEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: str
+    name: str
+    is_enabled: bool
+    last_synced_at: datetime
+
+
+class DynamicPoolSyncResult(BaseModel):
+    synced: int
+    total: int
+    enabled: int
+
+
+class DynamicPoolUpdate(BaseModel):
+    is_enabled: bool | None = None

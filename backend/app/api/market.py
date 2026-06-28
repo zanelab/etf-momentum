@@ -2,23 +2,20 @@
 from __future__ import annotations
 
 from datetime import date as date_type
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from app.data_sources import make_source
 from app.data_sources.base import DataNotFoundError
-from app.data_sources.fixture import FixtureCSVSource
 from app.services.today import load_display_names
-
-FIXTURES_DIR = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
 router = APIRouter(tags=["market"])
 
 
-def _market() -> FixtureCSVSource:
-    return FixtureCSVSource(FIXTURES_DIR)
+def _market(source: str | None = None):
+    return make_source(source)
 
 
 class ETFListItem(BaseModel):
@@ -73,6 +70,10 @@ def market_history(
         str | None,
         Query(description="Comma-separated field list"),
     ] = None,
+    source: Annotated[
+        str | None,
+        Query(description="Override data source: fixture or akshare"),
+    ] = None,
 ) -> HistoryResponse:
     if end < start:
         raise HTTPException(status_code=400, detail="end must be on or after start")
@@ -81,7 +82,7 @@ def market_history(
     else:
         requested = ["open", "high", "low", "close", "volume"]
 
-    market = _market()
+    market = _market(source)
     try:
         df = market.history(code, start, end, fields=requested)
     except DataNotFoundError as err:

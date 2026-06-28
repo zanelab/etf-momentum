@@ -41,3 +41,12 @@ class MarketDataSource(ABC):
     def all_etfs(self, as_of: date) -> list[str]:
         """Return all ETF codes known to this source as of `as_of`."""
         ...
+
+    @abstractmethod
+    def all_etf_entries(self, as_of: date) -> list[tuple[str, str]]:
+        """Return [(code, name)] pairs known to this source as of `as_of`.
+
+        Implementations that lack name metadata may return `[(code, code)]`.
+        Used by dynamic-pool sync to populate `DynamicPoolEntry`.
+        """
+        ...

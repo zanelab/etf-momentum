@@ -1,0 +1,5 @@
+# Optional real-time data source dependencies.
+# Install with: pip install -r requirements-realtime.txt
+# Then set ETF_DATA_SOURCE=akshare to enable the live data path.
+
+akshare>=1.16,<2

@@ -28,10 +28,10 @@ etf-momentum/
 │   ├── app/
 │   │   ├── main.py         # FastAPI app + 路由挂载
 │   │   ├── api/            # 路由层
-│   │   │   ├── configs.py      # 池子/词典/参数 CRUD
-│   │   │   ├── screening.py    # 当日筛选 / 持仓 / 信号
-│   │   │   ├── backtest.py     # 回测任务
-│   │   │   └── market.py       # ETF 列表 + OHLCV 历史
+│   │   │   ├── configs.py      # 池子/词典/参数 CRUD + 动态池 list/sync/patch
+│   │   │   ├── screening.py    # 当日筛选 / 持仓 / 信号（支持 ?source=）
+│   │   │   ├── backtest.py     # 回测任务（支持 ?source=）
+│   │   │   └── market.py       # ETF 列表 + OHLCV 历史（支持 ?source=）
 │   │   ├── services/       # 业务服务
 │   │   │   ├── screening.py        # filter_etfs 核心
 │   │   │   ├── signals.py           # 买卖信号生成
@@ -40,12 +40,26 @@ etf-momentum/
 │   │   │   ├── portfolio_mock.py    # 模拟持仓
 │   │   │   ├── daily_sync.py        # 收盘同步
 │   │   │   └── today.py             # 当日解析 + DB 装载
-│   │   ├── data_sources/   # MarketDataSource 抽象 + FixtureCSVSource
-│   │   ├── models/         # SQLModel 表（static_pool / theme_keyword / strategy_param）
+│   │   ├── data_sources/   # MarketDataSource 抽象 + FixtureCSVSource + AkShareSource + CachedSource
+│   │   │   ├── __init__.py          # make_source(name) 工厂
+│   │   │   ├── base.py              # 抽象接口
+│   │   │   ├── fixture.py           # CSV mock
+│   │   │   ├── akshare_source.py    # akshare 适配（K线 + 全市场列表）
+│   │   │   ├── cache.py             # 读穿透缓存装饰器
+│   │   │   └── retry.py             # retry_with_backoff 工具
+│   │   ├── models/         # SQLModel 表（static_pool / theme_keyword / strategy_param / dynamic_pool_entry / market_bar_cache）
 │   │   ├── schemas.py      # Pydantic 请求/响应模型
 │   │   ├── db.py           # SQLite 初始化 + session_scope
 │   │   └── seed.py         # 默认数据填充
-│   ├── tests/              # pytest（74 用例）
+│   ├── tests/              # pytest（116 用例：74 原 + 42 新增）
+│   │   │   ├── test_make_source.py         # 4 用例
+│   │   │   ├── test_market_bar_cache.py    # 3 用例
+│   │   │   ├── test_dynamic_pool_model.py  # 2 用例
+│   │   │   ├── test_retry.py               # 6 用例
+│   │   │   ├── test_akshare_source.py      # 7 用例
+│   │   │   ├── test_cached_source.py       # 5 用例
+│   │   │   ├── test_dynamic_pool_api.py    # 12 用例
+│   │   │   └── test_health_stats.py        # 3 用例
 │   ├── data/
 │   │   ├── fixtures/       # 10 只 ETF × 500 天 GBM mock CSV
 │   │   ├── backtest_tasks/ # 任务 JSON 文件
@@ -55,10 +69,11 @@ etf-momentum/
 ├── frontend/               # React + Vite + TS 前端
 │   ├── src/
 │   │   ├── api/            # client.ts + hooks.ts（TanStack Query）
-│   │   ├── pages/          # 7 个页面 + Landing
+│   │   ├── pages/          # 8 个页面 + Landing
 │   │   │   ├── PoolConfig.tsx / ThemeConfig.tsx / StrategyConfig.tsx
 │   │   │   ├── Signals.tsx / Portfolio.tsx / Screening.tsx
 │   │   │   ├── Backtest.tsx / History.tsx
+│   │   │   ├── DataSource.tsx           # 数据源 + 动态池管理
 │   │   ├── App.tsx         # 路由
 │   │   └── main.tsx        # 入口
 │   └── package.json
@@ -73,7 +88,8 @@ etf-momentum/
 │   ├── specs/              # 长期规格
 │   └── changes/
 │       └── archive/
-│           └── bootstrap-fullstack-20260628/  # 本次变更归档
+│           ├── bootstrap-fullstack-20260628/
+│           └── real-data-source-20260629/     # 真实数据源接入
 ├── scripts/                # speccoding 工具脚本
 │   ├── speccoding-state.sh
 │   ├── speccoding-gate.sh

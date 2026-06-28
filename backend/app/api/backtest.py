@@ -4,11 +4,12 @@ from __future__ import annotations
 import logging
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
-from app.data_sources.fixture import FixtureCSVSource
+from app.data_sources import make_source
 from app.services.backtest import run_backtest
 from app.services.backtest_task import (
     create_task,
@@ -32,14 +33,15 @@ MAX_WINDOW_DAYS = 366  # inclusive guard, ~1 trading year
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
 
-def _market() -> FixtureCSVSource:
-    return FixtureCSVSource(FIXTURES_DIR)
+def _market(source: Optional[str] = None):
+    return make_source(source)
 
 
 class BacktestRequest(BaseModel):
     start: date
     end: date
     initial_nav: float = Field(default=1.0, gt=0)
+    source: Optional[str] = Field(default=None, description="Data source override")
 
 
 def _serialize_result(result) -> dict:
@@ -72,7 +74,7 @@ def _run_task(task_id: str, request: BacktestRequest) -> None:
         themes = load_themes()
         display_names = load_display_names(static_pool)
 
-        market = _market()
+        market = _market(request.source)
         result = run_backtest(
             start=request.start,
             end=request.end,

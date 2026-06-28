@@ -109,3 +109,84 @@ frontend/
 - **回测任务异步化**：通过 FastAPI `BackgroundTasks` + JSON 文件持久化（`data/backtest_tasks/{task_id}.json`），前端按 2s 轮询 `/api/backtest/{task_id}` 获取状态
 - **JoinQuant 兼容验证**：保留 `main.py` 不动，新增 `tests/_jq_shim.py` 装载原文件并 stub 所有 JQ API，用 3 个对照测试（default / industry-diverse / ma-filter-off）验证迁移后 `filter_etfs` 与原行为一致
 - **前端 UI**：实际采用 Tailwind + 自写小组件替代 shadcn（避免额外工具链），仍满足配置型后台形态
+
+## 实施调整（M9 real-data-source，2026-06-29）
+
+### 数据源抽象层
+
+```
+backend/app/data_sources/
+├── base.py              # MarketDataSource 抽象接口（新增 all_etf_entries）
+├── fixture.py           # FixtureCSVSource（GBM mock）
+├── akshare_source.py    # AkShareSource（真实 akshare 适配）
+├── cache.py             # CachedSource（读穿透缓存装饰器）
+├── retry.py             # retry_with_backoff（指数退避工具）
+└── __init__.py          # make_source(name) 工厂 + reset_source_cache
+```
+
+**`MarketDataSource` 接口**：
+
+- `get_etf_list(as_of) -> list[str]`：返回候选池代码
+- `get_history(code, start, end) -> DataFrame`：OHLCV + amount
+- `get_spot(code, as_of) -> dict`：当日快照（close/volume/amount）
+- `all_etf_entries(as_of) -> list[(code, name)]`：返回 `(代码, 名称)` 列表，用于动态池同步；无名称元数据的实现可返回 `[(code, code)]`
+
+### 数据源切换
+
+```
+请求 (per-request ?source=akshare) ──┐
+                                     │
+环境变量 ETF_DATA_SOURCE ────────────┼─► make_source(name) ──► MarketDataSource
+                                     │   (含 LRU 缓存 +            实例
+                                     │    reset_source_cache)
+                                     │
+默认值（fixture）────────────────────┘
+```
+
+- `make_source()` 不带参数时读 `ETF_DATA_SOURCE`，缺省 `fixture`
+- `make_source("akshare")` 强制走 akshare，**自动外层包 `CachedSource`**（读穿透到 SQLite `market_bar_cache`）
+- `make_source("fixture")` 不包缓存
+- 所有读行情接口（`/api/market/history`、`/api/screening/today`、`/api/signals/today`、`/api/portfolio`、`/api/backtest`）均接受 `?source=` per-request 覆盖
+
+### AkShareSource 关键细节
+
+- **K 线**：`akshare.fund_etf_hist_em(symbol, period="daily", start_date, end_date, adjust="hfq")` → 中文列名 `日期/开盘/收盘/最高/最低/成交量/成交额` 映射为英文 `date/open/close/high/low/volume/amount`
+- **全市场列表**：`akshare.fund_etf_spot_em()` → 1522 条 ETF，列 `代码/名称`（6 位裸码如 `512650`，无 `XSHG` 后缀）
+- **降级策略**：构造时若传 `fixtures_dir`，K 线请求在 akshare 抛异常时回退到 fixture（开发便利）；不传则纯透传（生产用）
+- **重试**：通过 `retry_with_backoff(max_retries=3, initial_delay=0.5, backoff=2.0)` 包裹调用
+
+### CachedSource
+
+```
+请求 → SQLite market_bar_cache 查询
+       ├─ 命中（区间 ⊆ 已存） → 直接返回
+       └─ 未命中 → 调 inner.get_history() → 写入缓存 → 返回
+```
+
+- Key = `(source_name, code, start, end, adjust)`；命中计数器暴露 `stats() -> {hit, miss}` 与 `clear()`
+- `/api/health?stats=1` 在当前默认源为 `CachedSource` 时返回 `cache_hit` / `cache_miss` 计数（fixture 模式不暴露）
+
+### 动态池流程
+
+```
+前端 /datasource 页面
+   │
+   ├─ GET /api/configs/pool/dynamic        → DynamicPoolEntry 列表
+   ├─ POST /api/configs/pool/dynamic/sync  → 强制调 AkShareSource()（不读 ETF_DATA_SOURCE）
+   │     ├─ ImportError → 503 "akshare is not installed"
+   │     ├─ 网络/解析异常 → 502 "akshare fetch failed: ..."
+   │     └─ 返回空 list → 502 "akshare returned an empty ETF list"
+   │     成功 → UPSERT（保留旧 is_enabled，刷新 name/last_synced_at）→ 200 {synced, total, enabled}
+   └─ PATCH /api/configs/pool/dynamic/{code} → 切换 is_enabled
+```
+
+`filter_etfs` 后续需补一步：akshare 6 位裸码（如 `512650`）↔ 静态池带后缀（如 `512650.XSHG`）做归一化合并（M10 计划）。
+
+### 前端观测面板
+
+`/datasource` 页（`frontend/src/pages/DataSource.tsx`）：
+
+- 顶部：健康状态 + 缓存命中/未命中计数（5s 轮询 `useHealthStats`）
+- 中部：动态池表格 + 名称过滤 + 行内启用开关（`useToggleDynamicEntry`）
+- 底部：「立即同步」按钮 + 「同步源: akshare」内联提示（`useSyncDynamicPool`）
+- 错误展示：`ApiError.detail` 直接显示，避免「API 503:」前缀污染
