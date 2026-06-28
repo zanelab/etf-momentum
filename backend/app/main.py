@@ -12,12 +12,14 @@ from app.api.configs import router as configs_router
 from app.api.market import router as market_router
 from app.api.screening import router as screening_router
 from app.seed import seed_if_empty
+from app.services.daily_sync import sync_today
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db_module.init_db()
     seed_if_empty()
+    sync_today()
     yield
 
 
