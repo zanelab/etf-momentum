@@ -186,3 +186,27 @@ def test_patch_can_disable(client: TestClient) -> None:
     resp = client.patch("/api/configs/pool/dynamic/X", json={"is_enabled": False})
     assert resp.status_code == 200
     assert resp.json()["is_enabled"] is False
+
+
+def test_sync_ignores_fixture_default(client: TestClient, monkeypatch) -> None:
+    """Even when ETF_DATA_SOURCE=fixture, sync MUST pull from akshare (per
+    spec: dynamic pool represents the full universe, not the curated fixture).
+    Verifies sync decouples from the global default source.
+    """
+    import pandas as pd
+
+    # Inject fake akshare so the ak_share branch of make_source can instantiate
+    fake = _inject_fake_akshare(monkeypatch)
+    fake.fund_etf_name_em = lambda: pd.DataFrame(
+        {"基金代码": ["999999.XSHG"], "基金名称": ["全市场ETF"]}
+    )
+    # Default is fixture; sync should still hit akshare
+    monkeypatch.setenv("ETF_DATA_SOURCE", "fixture")
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 200
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry)).all())
+        # Only the akshare-returned row should appear, NOT any fixture CSV code
+        assert len(rows) == 1
+        assert rows[0].code == "999999.XSHG"
+        assert rows[0].name == "全市场ETF"

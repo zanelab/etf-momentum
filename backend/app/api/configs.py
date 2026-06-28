@@ -173,12 +173,17 @@ def list_dynamic_pool() -> list[DynamicPoolEntryOut]:
 
 @router.post("/pool/dynamic/sync", response_model=DynamicPoolSyncResult)
 def sync_dynamic_pool() -> DynamicPoolSyncResult:
-    """Pull the full ETF universe from the active source and UPSERT rows.
+    """Pull the full ETF universe from akshare and UPSERT rows.
+
+    Per spec, sync always pulls from akshare (the dynamic pool represents the
+    full ETF universe, not the curated static pool). The endpoint is decoupled
+    from `ETF_DATA_SOURCE` so callers do not need to switch the global
+    default just to refresh the dynamic pool.
 
     Existing `is_enabled` flags are preserved (sync only refreshes code, name,
     and last_synced_at).
     """
-    source = make_source()  # uses ETF_DATA_SOURCE env var
+    source = make_source("akshare")
     entries = source.all_etf_entries(datetime.utcnow().date())
     now = datetime.utcnow()
     with db_module.session_scope() as session:

@@ -71,6 +71,10 @@ export default function DataSource() {
               {(pool.data ?? []).length} 条记录 · {enabledCount} 已启用 · 最近同步：
               {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : "—"}
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              同步源：<span className="font-mono">akshare</span>（全市场 ETF
+              列表，独立于页面其他查询使用的默认数据源）
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <input
