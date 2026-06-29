@@ -36,7 +36,7 @@ describe("App shell wiring", () => {
   beforeEach(() => vi.restoreAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
-  it("renders the 4-entry top nav", async () => {
+  it("renders the 2-entry top nav", async () => {
     setupFetchMock({
       "/api/portfolio": {
         as_of: "2026-01-15",
@@ -51,8 +51,8 @@ describe("App shell wiring", () => {
     });
     renderApp("/");
     await waitFor(() => expect(screen.getByText("仪表盘")).toBeInTheDocument());
-    expect(screen.getByText("持仓")).toBeInTheDocument();
-    expect(screen.getByText("今日调仓")).toBeInTheDocument();
+    expect(screen.queryByText("持仓")).not.toBeInTheDocument();
+    expect(screen.queryByText("今日调仓")).not.toBeInTheDocument();
     expect(screen.getByText("设置")).toBeInTheDocument();
   });
 

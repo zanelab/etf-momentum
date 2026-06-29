@@ -15,11 +15,11 @@ function renderAt(path: string) {
 }
 
 describe("AppShell", () => {
-  it("renders the four top-nav entries", () => {
+  it("renders the two top-nav entries", () => {
     renderAt("/");
     expect(screen.getByText("仪表盘")).toBeInTheDocument();
-    expect(screen.getByText("持仓")).toBeInTheDocument();
-    expect(screen.getByText("今日调仓")).toBeInTheDocument();
+    expect(screen.queryByText("持仓")).not.toBeInTheDocument();
+    expect(screen.queryByText("今日调仓")).not.toBeInTheDocument();
     expect(screen.getByText("设置")).toBeInTheDocument();
   });
 
@@ -31,11 +31,7 @@ describe("AppShell", () => {
   it("links the top-nav entries to the right paths", () => {
     renderAt("/");
     const dashboardLink = screen.getByRole("link", { name: "仪表盘" });
-    const portfolioLink = screen.getByRole("link", { name: "持仓" });
-    const signalsLink = screen.getByRole("link", { name: "今日调仓" });
     expect(dashboardLink).toHaveAttribute("href", "/");
-    expect(portfolioLink).toHaveAttribute("href", "/portfolio");
-    expect(signalsLink).toHaveAttribute("href", "/signals");
   });
 
   it("renders the brand heading", () => {

@@ -3,8 +3,6 @@ import { Link, NavLink } from "react-router-dom";
 
 const TOP_NAV: ReadonlyArray<{ to: string; label: string }> = [
   { to: "/", label: "仪表盘" },
-  { to: "/portfolio", label: "持仓" },
-  { to: "/signals", label: "今日调仓" },
 ];
 
 interface AppShellProps {

@@ -9,8 +9,6 @@ import DataSource from "@/pages/DataSource";
 import DynamicPoolPage from "@/pages/DynamicPoolPage";
 import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
-import Portfolio from "@/pages/Portfolio";
-import Signals from "@/pages/Signals";
 import StrategyConfig from "@/pages/StrategyConfig";
 import ThemeConfig from "@/pages/ThemeConfig";
 
@@ -27,8 +25,6 @@ export default function App() {
       <AppShell onSettingsClick={openSidebar}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/signals" element={<Signals />} />
           <Route path="/pool" element={<PoolConfig />} />
           <Route path="/themes" element={<ThemeConfig />} />
           <Route path="/strategy" element={<StrategyConfig />} />
@@ -36,7 +32,6 @@ export default function App() {
           <Route path="/backtest" element={<Backtest />} />
           <Route path="/history" element={<History />} />
           <Route path="/datasource" element={<DataSource />} />
-          <Route path="/screening" element={<Navigate to="/signals" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>
