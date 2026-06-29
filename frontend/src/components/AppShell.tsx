@@ -35,7 +35,7 @@ export function AppShell({ children, onSettingsClick }: AppShellProps) {
             ))}
             <button
               type="button"
-              onClick={onSettingsClick}
+              onClick={() => onSettingsClick?.()}
               className="text-muted-foreground hover:text-foreground"
             >
               设置

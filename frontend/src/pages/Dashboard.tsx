@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
-import { useDynamicPool, useHealthStats, usePool, usePortfolio, useSignalsToday } from "@/api/hooks";
+import { DEFENSIVE_REASON, useDynamicPool, useHealthStats, usePool, usePortfolio, useSignalsToday } from "@/api/hooks";
 
 function money(value: number | undefined): string {
   if (value === undefined || Number.isNaN(value)) return "—";
@@ -30,7 +30,7 @@ export function Dashboard() {
   }, [pool.data]);
 
   const realSignals = (signals.data?.signals ?? []).filter(
-    (s) => !(s.type === "BUY" && s.reason === "无动量目标，切换防御模式"),
+    (s) => !(s.type === "BUY" && s.reason === DEFENSIVE_REASON),
   );
   const actionCount = realSignals.length;
 

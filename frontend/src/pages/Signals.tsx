@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 
-import { usePool, useScreeningToday, useSignalsToday } from "@/api/hooks";
-
-const DEFENSIVE_REASON = "无动量目标，切换防御模式";
+import { DEFENSIVE_REASON, usePool, useScreeningToday, useSignalsToday } from "@/api/hooks";
 
 export default function Signals() {
   const signals = useSignalsToday();
@@ -101,6 +99,36 @@ export default function Signals() {
         <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           ⚠ 防御模式：本次未发现满足动量条件的标的，资金转入 <code>511880.XSHG</code> 银华日利
         </div>
+      )}
+
+      {screening.data && screening.data.details && screening.data.details.length > 0 && (
+        <details className="rounded border p-2 text-sm">
+          <summary className="cursor-pointer">▶ 进阶：为什么这样选</summary>
+          <table className="mt-2 w-full text-xs">
+            <thead className="text-left opacity-70">
+              <tr>
+                <th>代码</th>
+                <th>名称</th>
+                <th>动量分</th>
+                <th>年化收益</th>
+                <th>R²</th>
+                <th>量比</th>
+              </tr>
+            </thead>
+            <tbody>
+              {screening.data.details.map((d) => (
+                <tr key={d.code} className="border-t border-current/10">
+                  <td className="font-mono">{d.code}</td>
+                  <td>{nameByCode[d.code] ?? "—"}</td>
+                  <td>{(Math.round(d.momentum_score * 10000) / 10000).toFixed(4)}</td>
+                  <td>{(d.annual_return * 100).toFixed(2)}%</td>
+                  <td>{(Math.round(d.r2 * 10000) / 10000).toFixed(4)}</td>
+                  <td>{d.volume_ratio === null ? "—" : (Math.round(d.volume_ratio * 10000) / 10000).toFixed(4)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
       )}
 
       <details className="rounded border p-2 text-sm">

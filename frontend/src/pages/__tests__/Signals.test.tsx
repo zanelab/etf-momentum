@@ -91,4 +91,29 @@ describe("Signals action checklist", () => {
     renderSignals();
     await waitFor(() => expect(screen.getByText(/复制完整/)).toBeInTheDocument());
   });
+
+  it("renders 进阶：为什么这样选 details with rows from screening details", async () => {
+    setupFetchMock({
+      "/api/signals/today": {
+        as_of: "2026-01-15",
+        signals: [
+          { type: "BUY", etf: "510300.XSHG", reason: "今日新进目标", shares: 1300, target_value: 5095 },
+        ],
+      },
+      "/api/screening/today": {
+        as_of: "2026-01-15",
+        targets: ["510300.XSHG"],
+        details: [
+          { code: "510300.XSHG", momentum_score: 0.4321, annual_return: 0.18, r2: 0.8765, volume_ratio: 0.95 },
+        ],
+      },
+      "/api/configs/pool": [
+        { code: "510300.XSHG", display_name: "沪深300ETF", enabled: true },
+      ],
+    });
+    renderSignals();
+    await waitFor(() => expect(screen.getByText(/进阶：为什么这样选/)).toBeInTheDocument());
+    // Annual return formatted as a percentage (18.00%) — appears inside the 进阶 table
+    expect(screen.getByText("18.00%")).toBeInTheDocument();
+  });
 });

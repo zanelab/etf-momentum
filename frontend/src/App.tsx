@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "@/components/AppShell";
@@ -17,9 +17,14 @@ import ThemeConfig from "@/pages/ThemeConfig";
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Stable callback refs so Sidebar's keydown effect doesn't re-bind on every
+  // render of this component.
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
   return (
     <>
-      <AppShell onSettingsClick={() => setSidebarOpen(true)}>
+      <AppShell onSettingsClick={openSidebar}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/portfolio" element={<Portfolio />} />
@@ -35,7 +40,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
     </>
   );
 }

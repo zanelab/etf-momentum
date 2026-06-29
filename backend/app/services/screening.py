@@ -8,6 +8,7 @@ parameters and a `MarketDataSource` injection so the function is pure and testab
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -17,6 +18,19 @@ from app.data_sources.codes import normalize_etf_code
 from app.services.types import StrategyParams
 
 DEFAULT_DEFENSIVE_ETF = "511880.XSHG"
+
+
+@dataclass(frozen=True)
+class EtfScore:
+    """Per-ETF scoring result returned by `filter_etfs_detailed`.
+
+    `volume_ratio` is None when volume check is disabled (no ratio was computed).
+    """
+    code: str
+    momentum_score: float
+    annual_return: float
+    r2: float
+    volume_ratio: float | None
 
 
 def _classify_theme(etf: str, display_name: str | None, themes: dict[str, list[str]]) -> str:
@@ -137,6 +151,32 @@ def filter_etfs(
     Step 3 (selection): with `enable_industry_diverse`, pick at most one ETF per
                         theme; fall back to top-scored if themes exhausted.
     """
+    return [s.code for s in filter_etfs_detailed(
+        as_of=as_of,
+        static_pool=static_pool,
+        dynamic_pool=dynamic_pool,
+        themes=themes,
+        params=params,
+        market=market,
+        display_names=display_names,
+    )]
+
+
+def filter_etfs_detailed(
+    as_of: datetime,
+    static_pool: list[str],
+    dynamic_pool: list[str],
+    themes: dict[str, list[str]],
+    params: StrategyParams,
+    market: MarketDataSource,
+    display_names: dict[str, str] | None = None,
+) -> list[EtfScore]:
+    """Like `filter_etfs`, but returns per-ETF scoring details (spec §5.3 进阶).
+
+    Returned list is ordered by score (best first). Volume_ratio is the value
+    computed during the volume-check step; if volume check is disabled, it is
+    None. `filter_etfs` is implemented in terms of this function.
+    """
     display_names = display_names or {}
 
     # Pool fusion — normalize every input to canonical form so that bare
@@ -162,9 +202,10 @@ def filter_etfs(
         return []
 
     # Step 2: Volume check + momentum scoring
-    score_list: list[tuple[str, float, float, float]] = []
+    score_list: list[EtfScore] = []
     for etf in passed_ma:
         try:
+            vol_ratio: float | None = None
             if params.enable_volume_check:
                 vol_ratio = _compute_volume_ratio(etf, as_of, params, market)
                 if vol_ratio is None or vol_ratio > params.volume_threshold:
@@ -174,32 +215,38 @@ def filter_etfs(
                 continue
             score, annual_ret, r2 = result
             if 0 < score < 5:
-                score_list.append((etf, score, annual_ret, r2))
+                score_list.append(EtfScore(
+                    code=etf,
+                    momentum_score=float(score),
+                    annual_return=float(annual_ret),
+                    r2=float(r2),
+                    volume_ratio=vol_ratio,
+                ))
         except DataNotFoundError:
             continue
 
-    score_list.sort(key=lambda x: x[1], reverse=True)
+    score_list.sort(key=lambda s: s.momentum_score, reverse=True)
 
     # Step 3: Selection (with optional industry diversification)
-    selected: list[str] = []
+    selected: list[EtfScore] = []
     if params.enable_industry_diverse:
         seen: set[str] = set()
-        for etf, _score, _ret, _r2 in score_list:
-            theme = _classify_theme(etf, display_names.get(etf), themes)
+        for entry in score_list:
+            theme = _classify_theme(entry.code, display_names.get(entry.code), themes)
             if theme in seen:
                 continue
-            selected.append(etf)
+            selected.append(entry)
             seen.add(theme)
             if len(selected) >= params.stock_sum:
                 break
         # Fallback: relax theme constraint
         if len(selected) < params.stock_sum:
-            for etf, _score, _ret, _r2 in score_list:
-                if etf not in selected:
-                    selected.append(etf)
+            for entry in score_list:
+                if entry not in selected:
+                    selected.append(entry)
                     if len(selected) >= params.stock_sum:
                         break
     else:
-        selected = [etf for etf, _, _, _ in score_list[: params.stock_sum]]
+        selected = list(score_list[: params.stock_sum])
 
     return selected

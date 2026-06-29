@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.data_sources import make_source
 from app.data_sources.base import DataNotFoundError, MarketDataSource
 from app.services.portfolio_mock import get_mock_portfolio
-from app.services.screening import filter_etfs
+from app.services.screening import filter_etfs, filter_etfs_detailed
 from app.services.signals import generate_signals
 from app.services.today import (
     load_display_names,
@@ -41,9 +41,20 @@ def _params_for_today() -> StrategyParams:
 # ────────────── /api/screening/today ──────────────
 
 
+class ScreeningTargetDetail(BaseModel):
+    """Per-ETF scoring detail returned alongside `targets` (spec §5.3 进阶)."""
+
+    code: str
+    momentum_score: float
+    annual_return: float
+    r2: float
+    volume_ratio: float | None
+
+
 class ScreeningTodayResponse(BaseModel):
     as_of: date_type
     targets: list[str]
+    details: list[ScreeningTargetDetail]
 
 
 @router.get("/screening/today", response_model=ScreeningTodayResponse)
@@ -52,7 +63,7 @@ def screening_today(source: Optional[str] = Query(None, description="Data source
     params = _params_for_today()
     static_pool = load_static_pool()
     themes = load_themes()
-    targets = filter_etfs(
+    scored = filter_etfs_detailed(
         as_of,
         static_pool=static_pool,
         dynamic_pool=[],
@@ -61,7 +72,18 @@ def screening_today(source: Optional[str] = Query(None, description="Data source
         market=_market(source),
         display_names=load_display_names(static_pool),
     )
-    return ScreeningTodayResponse(as_of=as_of.date(), targets=targets)
+    targets = [s.code for s in scored]
+    details = [
+        ScreeningTargetDetail(
+            code=s.code,
+            momentum_score=s.momentum_score,
+            annual_return=s.annual_return,
+            r2=s.r2,
+            volume_ratio=s.volume_ratio,
+        )
+        for s in scored
+    ]
+    return ScreeningTodayResponse(as_of=as_of.date(), targets=targets, details=details)
 
 
 # ────────────── /api/portfolio ──────────────
