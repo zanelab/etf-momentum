@@ -5,8 +5,6 @@ import json
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-
 from app.services.daily_sync import SYNC_DIR, sync_today
 
 
