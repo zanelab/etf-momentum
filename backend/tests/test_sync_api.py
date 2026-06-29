@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from datetime import date as date_type
 from datetime import datetime, timezone
 
 import pytest
@@ -14,6 +13,7 @@ from app.main import app
 from app.models.dynamic_pool import DynamicPoolEntry
 from app.models.static_pool import StaticPool
 from app.services import daily_sync
+from app.services.sync_progress import tracker
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +32,11 @@ def _setup_db(tmp_path, monkeypatch):
     import app.api.sync as sync_api_module
     monkeypatch.setattr(sync_api_module, "SYNC_DIR", fake_sync_dir)
 
+    # Ensure tracker is clean (singleton survives across tests; trigger endpoint checks it)
+    tracker.clear()
+
     yield
+    tracker.clear()
     db_module.reset_engine_for_tests()
 
 
@@ -138,8 +142,8 @@ def test_trigger_endpoint_runs_sync_and_returns_synced_count(
 
     import app.api.sync as sync_api_module
 
-    def fake_sync(codes, target_date=None):  # noqa: ARG001 — match real signature
-        sync_date = (target_date or date_type.today()).isoformat()
+    def fake_sync(codes, from_date, to_date):  # noqa: ARG001 — match real signature
+        sync_date = to_date.isoformat()
         daily_sync.SYNC_DIR.mkdir(parents=True, exist_ok=True)
         rows = [
             {"code": code, "date": sync_date, "close": 1.0, "volume": 1.0,
@@ -154,13 +158,18 @@ def test_trigger_endpoint_runs_sync_and_returns_synced_count(
     # Patch where it's USED (sync_api_module bound it at import time).
     monkeypatch.setattr(sync_api_module, "sync_historical_for_pool", fake_sync)
 
-    resp = client.post("/api/sync/historical/trigger")
+    resp = client.post(
+        "/api/sync/historical/trigger",
+        params={"from_date": "2024-04-19", "to_date": "2024-04-21"},
+    )
     assert resp.status_code == 200, resp.text
     body = resp.json()
 
     assert body["synced_count"] == 2
     assert body["etfs"], "etfs should be non-empty"
     assert all(e["status"] == "ok" for e in body["etfs"])
+    assert body["from_date"] == "2024-04-19"
+    assert body["to_date"] == "2024-04-21"
     # run_at is set and parseable as ISO-8601 with timezone.
     # Pydantic serializes UTC datetimes with a 'Z' suffix; normalize for parsing.
     run_at_str = body["run_at"].replace("Z", "+00:00")
@@ -179,12 +188,15 @@ def test_trigger_endpoint_returns_500_on_sync_failure(
 
     import app.api.sync as sync_api_module
 
-    def boom(codes, target_date=None):  # noqa: ARG001
+    def boom(codes, from_date, to_date):  # noqa: ARG001
         raise RuntimeError("akshare timeout")
 
     # Patch where it's USED (sync_api_module bound it at import time).
     monkeypatch.setattr(sync_api_module, "sync_historical_for_pool", boom)
 
-    resp = client.post("/api/sync/historical/trigger")
+    resp = client.post(
+        "/api/sync/historical/trigger",
+        params={"from_date": "2024-04-19", "to_date": "2024-04-21"},
+    )
     assert resp.status_code == 500
     assert "akshare timeout" in resp.json()["detail"]

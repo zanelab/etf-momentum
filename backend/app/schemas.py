@@ -1,10 +1,12 @@
 """Pydantic request/response schemas."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.services.sync_progress import ProgressInfo  # re-export for OpenAPI
 
 
 class StaticPoolEntry(BaseModel):
@@ -75,6 +77,8 @@ class SyncETFStatus(BaseModel):
 class SyncStatusResponse(BaseModel):
     as_of: str | None
     etfs: list[SyncETFStatus]
+    in_progress: list[ProgressInfo] | None = None
+    is_running: bool = False
 
 
 class SyncTriggerResult(SyncStatusResponse):
@@ -82,3 +86,5 @@ class SyncTriggerResult(SyncStatusResponse):
 
     synced_count: int
     run_at: datetime
+    from_date: date
+    to_date: date

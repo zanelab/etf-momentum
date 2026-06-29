@@ -2,17 +2,21 @@
 from __future__ import annotations
 
 import json
+from datetime import date as date_type
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.db import get_engine, session_scope
 from app.models.dynamic_pool import DynamicPoolEntry
 from app.models.static_pool import StaticPool
 from app.schemas import SyncETFStatus, SyncStatusResponse, SyncTriggerResult
 from app.services.daily_sync import SYNC_DIR, sync_historical_for_pool
+from app.services.sync_progress import tracker
 
 router = APIRouter(tags=["sync"])
+
+MAX_RANGE_DAYS = 730
 
 
 def _pool_union_codes() -> list[str]:
@@ -92,32 +96,63 @@ def _build_etfs(
 
 @router.get("/sync/historical/status", response_model=SyncStatusResponse)
 def get_sync_status() -> SyncStatusResponse:
-    """Return the latest historical-sync status for every code in the pool union."""
+    """Return the latest historical-sync status for every code in the pool union.
+
+    If a sync is currently running, also returns the in-progress list.
+    """
     names = _name_lookup()
     as_of, by_code = _latest_summary()
     etfs = _build_etfs(_pool_union_codes(), names, by_code)
-    return SyncStatusResponse(as_of=as_of, etfs=etfs)
+    in_progress = tracker.get_all() if tracker.is_active() else None
+    return SyncStatusResponse(
+        as_of=as_of,
+        etfs=etfs,
+        in_progress=in_progress,
+        is_running=tracker.is_active(),
+    )
 
 
 @router.post("/sync/historical/trigger", response_model=SyncTriggerResult)
-def trigger_sync() -> SyncTriggerResult:
-    """Run a fresh historical sync over the pool union and return its status."""
+def trigger_sync(
+    from_date: date_type = Query(...),  # noqa: B008 — FastAPI Query pattern
+    to_date: date_type = Query(...),  # noqa: B008 — FastAPI Query pattern
+) -> SyncTriggerResult:
+    """Run a fresh historical sync for the given date range."""
+    if from_date > to_date:
+        raise HTTPException(400, "from_date must be ≤ to_date")
+    if from_date > date_type.today():
+        raise HTTPException(400, "from_date cannot be in the future")
+    if (to_date - from_date).days + 1 > MAX_RANGE_DAYS:
+        raise HTTPException(400, f"date range too large (max {MAX_RANGE_DAYS} days)")
+    if tracker.is_active():
+        raise HTTPException(400, "sync already running")
+
     codes = _pool_union_codes()
     if not codes:
-        raise HTTPException(status_code=400, detail="pool is empty; nothing to sync")
-    run_at = datetime.now(timezone.utc)
+        raise HTTPException(400, "pool is empty; nothing to sync")
+
     try:
-        sync_historical_for_pool(codes=codes)
+        sync_historical_for_pool(codes=codes, from_date=from_date, to_date=to_date)
     except Exception as e:  # noqa: BLE001 — surface as 500 with detail
-        raise HTTPException(status_code=500, detail=f"sync failed: {e}") from e
+        tracker.clear()
+        raise HTTPException(500, detail=f"sync failed: {e}") from e
 
     names = _name_lookup()
     as_of, by_code = _latest_summary()
     etfs = _build_etfs(codes, names, by_code)
     synced_count = sum(1 for e in etfs if e.status == "ok")
+
+    # Snapshot final in_progress before clearing (in case anything to show)
+    final_in_progress = tracker.get_all()
+    tracker.clear()
+
     return SyncTriggerResult(
         as_of=as_of,
         etfs=etfs,
+        in_progress=final_in_progress if final_in_progress else None,
+        is_running=False,
         synced_count=synced_count,
-        run_at=run_at,
+        run_at=datetime.now(timezone.utc),
+        from_date=from_date,
+        to_date=to_date,
     )
