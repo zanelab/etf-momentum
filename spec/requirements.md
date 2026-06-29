@@ -106,6 +106,23 @@
 - **持久化**：摘要 JSON 写入 `backend/data/daily_sync/{YYYY-MM-DD}.json`（与原 mock 路径一致，row 扩展 `status` / `error` 字段）
 - **测试覆盖**：后端 pytest 172 用例（含本变更新增 7 个：sync_for_pool 3 个 + sync_api 4 个）；前端 vitest 33 用例（含本变更新增 3 个）
 
+## 动态池中枢化（dynamic-pool-consolidate 2026-06-29）
+
+- **目标**：将 `/dynamic-pool` `/history` `/sync` 三个并列工具页合并为以动态池为中枢的统一页面；侧边栏工具区由 4 项减为 2 项
+- **范围**：纯前端 IA 重构（无后端改动；复用 `/api/configs/pool/dynamic/*`、`/api/sync/historical/*`、`/api/market/history`）
+- **主页 `/dynamic-pool`**：
+  - 顶部双按钮：`同步 ETF`（primary）/ `同步 ETF 历史数据`（secondary）；互斥 disabled
+  - 表格新增「历史同步状态」列（`<SyncStatusBadge>` 4 徽章：`✓ 已同步` / `⚠ 失败` / `— 缺失` / `— 未同步`）
+  - 行点击下钻到 `/dynamic-pool/:code`
+- **子页 `/dynamic-pool/:code`（新 `EtfDetailPage`）**：
+  - 顶部 `← 返回动态池` + 标题 `<code> · <name>`
+  - 池外 ETF 软兜底：amber 警示条 + K 线仍渲染
+  - 沿用 `useMarketHistory` 的 recharts ComposedChart
+- **抽取组件**：`<SyncStatusBadge>` 提到 `frontend/src/components/`，主页与子页共用
+- **路由清理**：删除 `/history` 与 `/sync`；通配 `*` → `/` 兜底
+- **侧边栏**：`TOOL_ENTRIES` 由 4 → 2（仅回测、数据源）
+- **测试覆盖**：前端 vitest 38 passed（33 既有 + 4 DynamicPoolPage 新增 + 4 EtfDetailPage 新增 - 3 SyncStatus 旧用例删除 = 净增 5）；后端 pytest 172 沿用
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？

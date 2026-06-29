@@ -142,3 +142,27 @@
   - `useSyncStatus` refetchInterval=10s；同步刚完成后未立即刷新到 UI（mutation onSuccess 已 invalidate，可考虑更短 polling）
   - `_read_latest_bar` 接口预留 akshare 注入点；当前实现仅 fixtures
 - 下一步：merge 阶段合入 main
+
+## dynamic-pool-consolidate 变更归档
+
+- 日期：2026-06-29（plan 6/6，6 个 commit — 1 refactor + 1 refactor fix + 1 page extension + 1 new page + 1 fix wave + 1 cleanup + 1 docs sync；外加 manual smoke）
+- 分支：`feature/dynamic-pool-consolidate`（基于 etf-historical-sync HEAD `bb480ea` fast-forward 后的 main）
+- 流程归属：openspec（`openspec/changes/dynamic-pool-consolidate/{proposal, design, spec, plan}.md`）
+- 范围：纯前端 IA 重构——3 个并列工具页（`/dynamic-pool` `/history` `/sync`）合并为 1 个动态池中枢 + 1 个下钻子页
+- 关键产物：
+  - **`<SyncStatusBadge>` 抽取**：从 `SyncStatus.tsx` 内部实现提到 `frontend/src/components/`，主页表格与下钻子页共用（Task 1）
+  - **主页 `/dynamic-pool` 扩展**（Task 2）：双同步按钮（互斥 disabled；空池仅「同步 ETF 历史数据」disabled）+ 表格新增「历史同步状态」列（4 徽章）+ 行点击下钻 + 行内 checkbox stopPropagation + tabIndex+Enter 键盘可达
+  - **子页 `/dynamic-pool/:code`（新）**（Task 3）：标题 `<code> · <name>` + 顶部「← 返回动态池」+ 池外 ETF 软兜底（amber 警示 + K 线仍渲染）+ recharts K 线（ComposedChart close+volume，沿用 `useMarketHistory` 的 `rows` 字段）
+  - **路由与侧边栏清理**（Task 4）：删除 `/history` 与 `/sync` 路由 + `History.tsx` + `SyncStatus.tsx` + `SyncStatus.test.tsx`（3 个旧测试随页面删除）；`TOOL_ENTRIES` 由 4 → 2
+  - **测试基础设施**：`ResizeObserver` polyfill 加到 `frontend/src/test/setup.ts`（jsdom 缺失；recharts ResponsiveContainer 需要）
+- 实施过程：4 个 subagent-driven-development 任务（Task 1–4）+ Task 5 全栈 CI 验证 + Task 6 项目级 spec 同步。Task 3 一轮 fix wave（commit 6419635）修复 review 发现的 2 Important + 1 Minor：`<button>` 还原为 `<Link>`（可访问性）、`<h3>` 前缀还原匹配 `History.tsx`、trailing newlines、测试断言收紧（`getByRole("heading", { level: 2 })` + `<a href>` 属性断言以绕开 `<Link>`→`useNavigate` ESM closure mock 限制）
+- CI 验证：
+  - 前端：`npm test` 38 passed（33 既有 + 4 DynamicPoolPage 新增 + 4 EtfDetailPage 新增 - 3 SyncStatus 旧用例删除 = 净增 5）/ `tsc --noEmit` 通过 / `npm run build` 通过
+  - 后端：`uv run pytest -q` 172 passed（沿用，无新增）/ `uv run ruff check` 通过
+  - 整合：manual smoke 待运行（Task 5 清单）
+- 已知限制（继承 M12）：mock 路径仅同步 fixtures；akshare 真实数据源在 `_read_latest_bar` 抽象处替换时需要新增 akshare 调用 + 重试
+- 新增/已知 minor（留待后续 M13.x）：
+  - 子页 K 线的「字段选择」（open/high/low/volume）原 `History.tsx` 提供，本变更收敛为只显示 close + volume（简化版）
+  - 下钻子页未复用 `useMarketList` 的下拉（沿用动态池的 code 上下文）
+  - `useMarketList` 与 `useMarketHistory` 仍导出但前端无使用方（保留 hooks 不变，待后续清理）
+- 下一步：merge 阶段合入 main

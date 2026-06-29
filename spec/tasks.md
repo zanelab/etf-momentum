@@ -18,6 +18,7 @@
 | M11 | 用户旅程与导航重整（顶部 4 + 侧边栏 7+1） | ✅ 完成 |
 | M11.1 | Dashboard 化整为零（折叠 `/signals` `/portfolio`） | ✅ 完成 |
 | M12 | ETF 历史数据同步可观测（per-ETF 状态 + /sync 页面） | ✅ 完成 |
+| M13 | 动态池中枢化（合并 `/history` `/sync` 到 `/dynamic-pool`；下钻子页） | ✅ 完成 |
 
 ## 详细任务
 
@@ -136,6 +137,17 @@
 - [x] `/sync` 页面（4 列表格 + 立即同步按钮 + 4 状态徽章 + 空池子占位）
 - [x] `Sidebar` TOOL_ENTRIES 增补"数据同步"项
 - [x] 172 backend / 33 frontend passed
+
+### M13 动态池中枢化（dynamic-pool-consolidate 2026-06-29）
+
+- [x] 抽取 `<SyncStatusBadge>` 到 `frontend/src/components/`（Task 1；commit 579d2a6 + d869ffd）
+- [x] `DynamicPoolPage` 新增双同步按钮 + 互斥 disabled + 状态列 + 行点击下钻（Task 2；commit e709135）
+- [x] 新增 `EtfDetailPage` + `/dynamic-pool/:code` 路由（Task 3；commits 49b680e + 6419635 fix wave）
+- [x] 软兜底（amber 警示 + K 线仍渲染）— `EtfDetailPage` 检查 `pool?.some(...) ?? false`
+- [x] 删除 `/history` `/sync` 路由 + 3 个页面文件（History.tsx / SyncStatus.tsx / SyncStatus.test.tsx；Task 4；commit 66a6c2b）
+- [x] 侧边栏 `TOOL_ENTRIES` 4 → 2（仅回测、数据源）
+- [x] 测试基础设施：`ResizeObserver` polyfill 加到 `frontend/src/test/setup.ts`（Task 3 修复期间）
+- [x] 前端 38 passed / 后端 172 passed / tsc / ruff / build 全绿
 
 ## 当前迭代
 

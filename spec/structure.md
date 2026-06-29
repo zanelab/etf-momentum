@@ -70,21 +70,24 @@ etf-momentum/
 ├── frontend/               # React + Vite + TS 前端
 │   ├── src/
 │   │   ├── api/            # client.ts + hooks.ts（TanStack Query；含 useSyncStatus / useTriggerSync）
-│   │   ├── pages/          # 9 个页面：Dashboard + 配置 3 + 数据 4 + 回测 + 历史
+│   │   ├── pages/          # 8 个页面：Dashboard + 配置 3 + 数据 2 + 回测 + 动态池 + 下钻子页
 │   │   │   ├── Dashboard.tsx               # 4 卡片：资产概览 / 今日需要做的（含周度操作清单）/ 系统状态 / 当前持仓
 │   │   │   ├── PoolConfig.tsx / ThemeConfig.tsx / StrategyConfig.tsx
-│   │   │   ├── Backtest.tsx / History.tsx
+│   │   │   ├── Backtest.tsx
 │   │   │   ├── DataSource.tsx              # 数据源 + 缓存统计
-│   │   │   ├── DynamicPoolPage.tsx         # 动态池管理（独立成页）
-│   │   │   └── SyncStatus.tsx              # 数据同步可观测（4 列表格 + 立即同步按钮）
-│   │   ├── components/      # AppShell + Sidebar（顶部 2 项 + 侧边栏 7+1，含"数据同步"入口）
-│   │   ├── App.tsx         # 路由（/、/pool、/themes、/strategy、/backtest、/history、/datasource、/dynamic-pool、/sync）
+│   │   │   ├── DynamicPoolPage.tsx         # 动态池中枢（双同步按钮 + 状态列 + 行点击下钻）
+│   │   │   └── EtfDetailPage.tsx           # /dynamic-pool/:code 下钻子页（K 线 + 软兜底）
+│   │   ├── components/      # AppShell + Sidebar（顶部 2 项 + 侧边栏 4+2）+ SyncStatusBadge
+│   │   │   ├── AppShell.tsx                # 顶部 2 项 + Outlet 容器
+│   │   │   ├── Sidebar.tsx                 # 侧边栏 CONFIG_ENTRIES 4 + TOOL_ENTRIES 2（回测、数据源）
+│   │   │   └── SyncStatusBadge.tsx         # 4 状态徽章（ok/failed/missing/never）— 主页与子页共用
+│   │   ├── App.tsx         # 路由（/、/pool、/themes、/strategy、/backtest、/datasource、/dynamic-pool、/dynamic-pool/:code）
 │   │   └── main.tsx        # 入口
 │   └── package.json
 ├── spec/                   # 项目级 Spec（累积式维护）
 │   ├── requirements.md
 │   ├── design.md
-│   ├── tasks.md            # M0–M12 全部 ✅
+│   ├── tasks.md            # M0–M13 全部 ✅
 │   ├── devlog.md
 │   └── structure.md        # 本文档
 ├── openspec/
@@ -96,7 +99,8 @@ etf-momentum/
 │           ├── real-data-source-20260629/        # M9：真实数据源接入
 │           ├── akshare-code-normalization-20260629 # M10：代码归一化
 │           ├── dashboard-flatten-20260629         # M11.1：Dashboard 化整为零
-│           └── etf-historical-sync-20260629       # M12：历史同步可观测
+│           ├── etf-historical-sync-20260629       # M12：历史同步可观测
+│           └── dynamic-pool-consolidate-20260629  # M13：动态池中枢化（合并 /history /sync + 下钻子页）
 ├── scripts/                # speccoding 工具脚本
 │   ├── speccoding-state.sh
 │   ├── speccoding-gate.sh
