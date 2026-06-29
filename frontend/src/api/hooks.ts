@@ -38,8 +38,7 @@ export type ScreeningToday = {
 };
 
 // Shared constant for the defensive-mode BUY signal reason (spec §5.3).
-// Imported by Signals.tsx and Dashboard.tsx so the literal string lives in
-// one place.
+// Imported by Dashboard.tsx so the literal string lives in one place.
 export const DEFENSIVE_REASON = "无动量目标，切换防御模式";
 
 export type PortfolioHolding = {
