@@ -130,6 +130,24 @@ export type DynamicPoolSyncResult = {
   enabled: number;
 };
 
+export type SyncETFStatus = {
+  code: string;
+  name: string | null;
+  last_synced_date: string | null;
+  status: "ok" | "failed" | "missing" | "never";
+  error: string | null;
+};
+
+export type SyncStatusResponse = {
+  as_of: string | null;
+  etfs: SyncETFStatus[];
+};
+
+export type SyncTriggerResult = SyncStatusResponse & {
+  synced_count: number;
+  run_at: string;
+};
+
 // ────────────── Configs ──────────────
 
 export function usePool() {
@@ -235,6 +253,28 @@ export function useSignalsToday() {
     queryKey: ["signals-today"],
     queryFn: () => api<SignalsToday>("/api/signals/today"),
     refetchInterval: 5_000,
+  });
+}
+
+// ────────────── Sync historical ──────────────
+
+export function useSyncStatus() {
+  return useQuery({
+    queryKey: ["sync-historical-status"],
+    queryFn: () => api<SyncStatusResponse>("/api/sync/historical/status"),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useTriggerSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api<SyncTriggerResult>("/api/sync/historical/trigger", { method: "POST" }),
+    onSuccess: (data) => {
+      qc.setQueryData(["sync-historical-status"], data);
+      qc.invalidateQueries({ queryKey: ["sync-historical-status"] });
+    },
   });
 }
 
