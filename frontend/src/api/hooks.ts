@@ -138,9 +138,25 @@ export type SyncETFStatus = {
   error: string | null;
 };
 
+// ProgressInfo: mirror of backend/app/services/sync_progress.py:ProgressInfo.
+// Kept in sync by hand (no OpenAPI codegen in this project).
+export interface ProgressInfo {
+  code: string;
+  from_date: string;
+  to_date: string;
+  current_date: string;
+  total_days: number;
+  completed_days: number;
+  overall_index: number;
+  overall_total: number;
+  started_at: string;
+}
+
 export type SyncStatusResponse = {
   as_of: string | null;
   etfs: SyncETFStatus[];
+  in_progress: ProgressInfo[] | null;
+  is_running: boolean;
 };
 
 export type SyncTriggerResult = SyncStatusResponse & {

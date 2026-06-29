@@ -1,17 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { RowProgressBar } from "@/components/RowProgressBar";
+import { SyncProgressBanner } from "@/components/SyncProgressBanner";
 import { SyncStatusBadge } from "@/components/SyncStatusBadge";
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
 
 export default function DynamicPoolPage() {
   const navigate = useNavigate();
@@ -21,9 +15,16 @@ export default function DynamicPoolPage() {
   const toggle = useToggleDynamicEntry();
   const syncStatus = useSyncStatus();
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   const isPoolEmpty = (data?.length ?? 0) === 0;
-  const anyPending = syncPool.isPending || syncHistory.isPending;
+  const isRunning = syncStatus.data?.is_running ?? false;
+  const inProgress = syncStatus.data?.in_progress ?? [];
+  const anyPending = syncPool.isPending || syncHistory.isPending || isRunning;
+
   const statusByCode = new Map((syncStatus.data?.etfs ?? []).map((e) => [e.code, e.status]));
+  const progressByCode = new Map(inProgress.map((p) => [p.code, p]));
 
   if (isLoading) return <p>加载中…</p>;
   if (isError) return <p className="text-red-600">加载失败</p>;
@@ -43,12 +44,10 @@ export default function DynamicPoolPage() {
           </button>
           <button
             type="button"
-            onClick={() =>
-              syncHistory.mutate({
-                from_date: daysAgoIso(7),
-                to_date: todayIso(),
-              })
-            }
+            onClick={() => {
+              setSyncError(null);
+              setPickerOpen(true);
+            }}
             disabled={anyPending || isPoolEmpty}
             className="rounded border bg-background px-3 py-1.5 text-sm disabled:opacity-50"
           >
@@ -56,6 +55,8 @@ export default function DynamicPoolPage() {
           </button>
         </div>
       </header>
+
+      {inProgress.length > 0 && <SyncProgressBanner progress={inProgress} />}
 
       {isPoolEmpty && !anyPending && (
         <p className="text-sm text-muted-foreground">暂无动态池条目，请点击「同步 ETF」拉取全市场 ETF 列表</p>
@@ -97,13 +98,31 @@ export default function DynamicPoolPage() {
                   {e.last_synced_at ? new Date(e.last_synced_at).toLocaleString("zh-CN") : "—"}
                 </td>
                 <td>
-                  <SyncStatusBadge status={statusByCode.get(e.code) ?? "never"} />
+                  {progressByCode.get(e.code) ? (
+                    <RowProgressBar info={progressByCode.get(e.code)!} />
+                  ) : (
+                    <SyncStatusBadge status={statusByCode.get(e.code) ?? "never"} />
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+
+      <DateRangePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={(range) => {
+          setSyncError(null);
+          syncHistory.mutate(range, {
+            onSuccess: () => setPickerOpen(false),
+            onError: (err) => setSyncError(err.message),
+          });
+        }}
+        isSubmitting={syncHistory.isPending}
+        errorMessage={syncError}
+      />
     </section>
   );
 }
