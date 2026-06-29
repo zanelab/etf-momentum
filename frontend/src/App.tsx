@@ -2,6 +2,7 @@
 import { Link, Route, Routes } from "react-router-dom";
 
 import Backtest from "@/pages/Backtest";
+import { Dashboard } from "@/pages/Dashboard";
 import DataSource from "@/pages/DataSource";
 import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
@@ -42,7 +43,7 @@ export default function App() {
       </header>
       <main className="container py-6">
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/pool" element={<PoolConfig />} />
           <Route path="/themes" element={<ThemeConfig />} />
           <Route path="/strategy" element={<StrategyConfig />} />
@@ -57,6 +58,8 @@ export default function App() {
   );
 }
 
+// Task 9 (App-shell wiring) will remove this; keep around for now.
+// @ts-expect-error TS6133: Landing is unused (removed in Task 9 when AppShell takes over /)
 function Landing() {
   return (
     <section className="space-y-2">
