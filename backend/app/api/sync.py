@@ -109,7 +109,7 @@ def trigger_sync() -> SyncTriggerResult:
     try:
         sync_historical_for_pool(codes=codes)
     except Exception as e:  # noqa: BLE001 — surface as 500 with detail
-        raise HTTPException(status_code=500, detail=f"sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"sync failed: {e}") from e
 
     names = _name_lookup()
     as_of, by_code = _latest_summary()
