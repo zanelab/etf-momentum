@@ -1,9 +1,19 @@
-import { useDynamicPool, useSyncDynamicPool, useToggleDynamicEntry } from "@/api/hooks";
+import { useNavigate } from "react-router-dom";
+
+import { useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
+import { SyncStatusBadge } from "@/components/SyncStatusBadge";
 
 export default function DynamicPoolPage() {
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useDynamicPool();
-  const sync = useSyncDynamicPool();
+  const syncPool = useSyncDynamicPool();
+  const syncHistory = useTriggerSync();
   const toggle = useToggleDynamicEntry();
+  const syncStatus = useSyncStatus();
+
+  const isPoolEmpty = (data?.length ?? 0) === 0;
+  const anyPending = syncPool.isPending || syncHistory.isPending;
+  const statusByCode = new Map((syncStatus.data?.etfs ?? []).map((e) => [e.code, e.status]));
 
   if (isLoading) return <p>加载中…</p>;
   if (isError) return <p className="text-red-600">加载失败</p>;
@@ -12,41 +22,67 @@ export default function DynamicPoolPage() {
     <section className="space-y-4">
       <header className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">动态池</h2>
-        <button
-          type="button"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
-          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-        >
-          {sync.isPending ? "同步中…" : "重新同步"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => syncPool.mutate()}
+            disabled={anyPending}
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+          >
+            {syncPool.isPending ? "同步中…" : "同步 ETF"}
+          </button>
+          <button
+            type="button"
+            onClick={() => syncHistory.mutate()}
+            disabled={anyPending || isPoolEmpty}
+            className="rounded border bg-background px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            {syncHistory.isPending ? "同步中…" : "同步 ETF 历史数据"}
+          </button>
+        </div>
       </header>
 
-      {data && data.length === 0 && <p className="text-sm text-muted-foreground">暂无条目，请点击「重新同步」</p>}
+      {isPoolEmpty && !anyPending && (
+        <p className="text-sm text-muted-foreground">暂无动态池条目，请点击「同步 ETF」拉取全市场 ETF 列表</p>
+      )}
 
       {data && data.length > 0 && (
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-muted-foreground">
-              <th>代码</th><th>名称</th><th>启用</th><th>上次同步</th>
+              <th>代码</th>
+              <th>名称</th>
+              <th>启用</th>
+              <th>上次同步</th>
+              <th>历史同步状态</th>
             </tr>
           </thead>
           <tbody>
             {data.map((e) => (
-              <tr key={e.code} className="border-t">
+              <tr
+                key={e.code}
+                onClick={() => navigate("/dynamic-pool/" + encodeURIComponent(e.code))}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter") navigate("/dynamic-pool/" + encodeURIComponent(e.code));
+                }}
+                tabIndex={0}
+                className="cursor-pointer border-t hover:bg-accent/30"
+                data-testid={`pool-row-${e.code}`}
+              >
                 <td className="font-mono">{e.code}</td>
                 <td>{e.name}</td>
-                <td>
+                <td onClick={(ev) => ev.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={e.is_enabled}
-                    onChange={(ev) =>
-                      toggle.mutate({ code: e.code, isEnabled: ev.target.checked })
-                    }
+                    onChange={(ev) => toggle.mutate({ code: e.code, isEnabled: ev.target.checked })}
                   />
                 </td>
                 <td className="text-xs text-muted-foreground">
-                  {new Date(e.last_synced_at).toLocaleString("zh-CN")}
+                  {e.last_synced_at ? new Date(e.last_synced_at).toLocaleString("zh-CN") : "—"}
+                </td>
+                <td>
+                  <SyncStatusBadge status={statusByCode.get(e.code) ?? "never"} />
                 </td>
               </tr>
             ))}
