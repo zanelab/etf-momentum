@@ -14,6 +14,10 @@
 | M7 | 前端回测页 | ✅ 完成 |
 | M8 | 收盘数据同步（mock） | ✅ 完成 |
 | M9 | 真实数据源接入（akshare + 缓存 + 动态池） | ✅ 完成 |
+| M10 | ETF 代码归一化（akshare 6 位裸码 ↔ `XXXXXX.XSHG/XSHE`） | ✅ 完成 |
+| M11 | 用户旅程与导航重整（顶部 4 + 侧边栏 7+1） | ✅ 完成 |
+| M11.1 | Dashboard 化整为零（折叠 `/signals` `/portfolio`） | ✅ 完成 |
+| M12 | ETF 历史数据同步可观测（per-ETF 状态 + /sync 页面） | ✅ 完成 |
 
 ## 详细任务
 
@@ -92,9 +96,50 @@
 - [x] 单测：新增 8 个测试文件 / 42 个用例（116 总数）
 - [x] ruff / tsc / vite build 全绿
 
+### M10 ETF 代码归一化（akshare-code-normalization 2026-06-29）
+
+- [x] `app/data_sources/codes.py` 新增 `normalize_etf_code` / `same_etf`
+- [x] `AkShareSource.all_etf_entries` 归一 + 非法 code 静默丢弃
+- [x] `filter_etfs` 合并两池时按 canonical form 去重
+- [x] `load_display_names` 双查（原 code + canonical form）
+- [x] 动态池 sync upsert key 迁移到 canonical form
+- [x] pytest 159 passed（116 + 43 新增）
+
+### M11 用户旅程与导航重整（user-journey-reorg 2026-06-29）
+
+- [x] 顶部 4 项 + 侧边栏 7+1（`AppShell` + `Sidebar`）
+- [x] 首页 Dashboard 4 卡片（资产概览 / 今日需要做的 / 系统状态 / 当前持仓 Top 5）
+- [x] `/signals` 改版（周度操作清单 + 复制 + 进阶表 + 原始输出折叠）
+- [x] `/dynamic-pool` 独立成页（从原 `/datasource` 抽出）
+- [x] 过期动态池 amber 横幅 + 立即同步
+- [x] `@media print` 友好
+- [x] 后端 `PortfolioResponse` 新增 `available_cash` / `net_value`；`ScreeningTodayResponse.details`
+- [x] vitest + RTL + jsdom 测试基础设施
+- [x] 165 backend / 29 frontend passed
+
+### M11.1 Dashboard 化整为零（dashboard-flatten 2026-06-29）
+
+- [x] 移除 `/signals` `/portfolio` `/screening` 路由
+- [x] 顶部 nav 从 4 项减为 2 项（仪表盘 + 设置）
+- [x] 删除 `pages/Portfolio.tsx` 与 `pages/Signals.tsx`
+- [x] `Dashboard.tsx` 内联 7 列持仓表 + 完整周度操作清单
+- [x] 测试迁移（`Dashboard.holdings.test.tsx` / `Dashboard.signals.test.tsx` / 删除 `screening-redirect.test.tsx`）
+- [x] frontend 30 passed / backend 165 passed（沿用）
+
+### M12 ETF 历史数据同步可观测（etf-historical-sync 2026-06-29）
+
+- [x] `sync_historical_for_pool(codes)` 替代 `sync_today()`；每行新增 `status` / `error`
+- [x] `_read_latest_bar(code)` 抽象层（fixture 走文件，akshare 注入点预留）
+- [x] `GET/POST /api/sync/historical/{status,trigger}`（pool union 去重 + name 解析）
+- [x] `lifespan` 启动同步容错化（try/except + `if codes:` 守卫）
+- [x] 前端 `useSyncStatus` / `useTriggerSync` hooks
+- [x] `/sync` 页面（4 列表格 + 立即同步按钮 + 4 状态徽章 + 空池子占位）
+- [x] `Sidebar` TOOL_ENTRIES 增补"数据同步"项
+- [x] 172 backend / 33 frontend passed
+
 ## 当前迭代
 
-所有 M0–M9 里程碑已完成并归档（`bootstrap-fullstack-20260628/` + `real-data-source-20260629/`）。下一迭代可在新变更中启动，例如：
+所有 M0–M12 里程碑已完成并归档（`bootstrap-fullstack-20260628/` + `real-data-source-20260629/` + `akshare-code-normalization-20260629/` + `dashboard-flatten-20260629/` + `etf-historical-sync-20260629/`）。M11 走的是 docs/superpowers 流程而非 openspec（无归档目录，仅在 `spec/devlog.md` 有记录）。下一迭代可在新变更中启动，例如：
 
 - 动态池定时同步（cron 或 APScheduler）
 - akshare 代码归一化（6 位裸码 ↔ `XXXXXX.XSHG/XSHE`）以合并 static/dynamic pool
