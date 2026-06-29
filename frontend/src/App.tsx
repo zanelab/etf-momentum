@@ -1,5 +1,5 @@
 // Top-level shell + routes.
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import Backtest from "@/pages/Backtest";
 import { Dashboard } from "@/pages/Dashboard";
@@ -54,6 +54,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/dynamic-pool" element={<DynamicPoolPage />} />
           <Route path="/datasource" element={<DataSource />} />
+          <Route path="/screening" element={<Navigate to="/signals" replace />} />
         </Routes>
       </main>
     </div>
