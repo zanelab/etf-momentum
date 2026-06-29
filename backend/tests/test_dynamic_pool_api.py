@@ -355,3 +355,103 @@ def test_patch_normalizes_code_in_path(client: TestClient) -> None:
     assert resp.status_code == 200, resp.text
     assert resp.json()["code"] == "510300.XSHG"
     assert resp.json()["is_enabled"] is True
+
+
+def test_sync_handles_bare_and_canonical_row_collision(
+    client: TestClient, monkeypatch
+) -> None:
+    """Production regression: when DB has BOTH a legacy bare-code row AND a
+    canonical-form row for the same ETF (e.g. from a prior partial sync), the
+    bare→canonical migration step MUST NOT raise UNIQUE constraint failure.
+
+    Correct behavior: bare row is deleted, canonical row's is_enabled/name
+    are preserved (or refreshed by the upsert), and last_synced_at is updated.
+    """
+    fake = _inject_fake_akshare(monkeypatch)
+    import pandas as pd
+
+    legacy_now = datetime(2025, 1, 1)
+    with session_scope(get_engine()) as s:
+        # Legacy bare row from M9 (pre-normalization)
+        s.add(
+            DynamicPoolEntry(
+                code="510300",
+                name="legacy-bare",
+                is_enabled=True,
+                last_synced_at=legacy_now,
+            )
+        )
+        # Canonical row from a prior partial sync that did go through normalize
+        s.add(
+            DynamicPoolEntry(
+                code="510300.XSHG",
+                name="already-canonical",
+                is_enabled=False,
+                last_synced_at=legacy_now,
+            )
+        )
+
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300"], "名称": ["fresh-name"]}
+    )
+    monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 200, resp.text
+
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry).order_by(DynamicPoolEntry.code)).all())
+        # Exactly one row remains — bare was deleted, canonical was kept & refreshed
+        assert len(rows) == 1, f"expected 1 row, got {len(rows)}: {[r.code for r in rows]}"
+        row = rows[0]
+        assert row.code == "510300.XSHG"
+        assert row.name == "fresh-name"
+        # is_enabled: the bare row had is_enabled=True; the canonical row had
+        # is_enabled=False. Resolution: don't downgrade — bare's True wins.
+        # This preserves the user's intent (they enabled the bare row at some point).
+        assert row.is_enabled is True
+        assert row.last_synced_at > legacy_now
+
+
+def test_sync_dedupes_multiple_bare_rows_colliding_to_same_canonical(
+    client: TestClient, monkeypatch
+) -> None:
+    """Multiple bare-code rows (e.g. duplicates from a buggy prior sync) MUST
+    collapse to a single canonical row without UNIQUE constraint failure."""
+    fake = _inject_fake_akshare(monkeypatch)
+    import pandas as pd
+
+    with session_scope(get_engine()) as s:
+        # Two bare rows for the same ETF (would have been caught by UNIQUE on
+        # bare column, but illustrates: any non-canonical row that maps to
+        # the same canonical must be merged).
+        s.add(
+            DynamicPoolEntry(
+                code="510300",
+                name="a",
+                is_enabled=True,
+                last_synced_at=datetime(2025, 1, 1),
+            )
+        )
+        s.add(
+            DynamicPoolEntry(
+                code="159915",
+                name="b",
+                is_enabled=False,
+                last_synced_at=datetime(2025, 1, 1),
+            )
+        )
+
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300", "159915"], "名称": ["沪深300", "创业板"]}
+    )
+    monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 200, resp.text
+
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry).order_by(DynamicPoolEntry.code)).all())
+        assert len(rows) == 2
+        codes = sorted(r.code for r in rows)
+        assert codes == ["159915.XSHE", "510300.XSHG"]

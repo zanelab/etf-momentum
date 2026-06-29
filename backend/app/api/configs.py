@@ -215,21 +215,39 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
 
     now = datetime.utcnow()
     with db_module.session_scope() as session:
-        # Migrate any legacy bare-code rows (older syncs may have stored
-        # `510300` instead of `510300.XSHG`). Doing this BEFORE the upsert
-        # loop lets `session.get(DynamicPoolEntry, canonical_code)` match
-        # migrated rows, avoiding duplicates of the same ETF.
         from app.data_sources.codes import normalize_etf_code
 
+        # Migrate any legacy bare-code rows (older syncs may have stored
+        # `510300` instead of `510300.XSHG`). Production DBs may also have
+        # BOTH a bare row AND a canonical row for the same ETF (e.g. a prior
+        # partial sync inserted the canonical version before this migration
+        # step was added). Handle the collision: delete the bare row, and
+        # transfer its is_enabled flag to the canonical row so the user's
+        # intent isn't silently dropped.
         legacy_rows = list(session.exec(select(DynamicPoolEntry)).all())
         for r in legacy_rows:
-            if "." not in r.code:
-                try:
-                    r.code = normalize_etf_code(r.code)
-                    session.add(r)
-                except ValueError:
-                    # Unparseable legacy code; leave as-is so user can clean up manually.
-                    continue
+            if "." in r.code:
+                continue
+            try:
+                canonical = normalize_etf_code(r.code)
+            except ValueError:
+                # Unparseable legacy code; leave as-is so user can clean up manually.
+                continue
+            if canonical == r.code:
+                # Already canonical but no suffix — defensive; treat as-is.
+                continue
+            existing_canonical = session.get(DynamicPoolEntry, canonical)
+            if existing_canonical is not None:
+                # Collision: canonical row already exists. Delete the bare row
+                # and inherit its is_enabled flag (don't downgrade).
+                if r.is_enabled and not existing_canonical.is_enabled:
+                    existing_canonical.is_enabled = True
+                    session.add(existing_canonical)
+                session.delete(r)
+            else:
+                # No collision; rename bare → canonical.
+                r.code = canonical
+                session.add(r)
         session.flush()
 
         for code, name in entries:
