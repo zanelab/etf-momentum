@@ -154,3 +154,30 @@ def test_status_is_running_false_when_no_sync(client):
     body = r.json()
     assert body["is_running"] is False
     assert body["in_progress"] is None
+
+
+def test_trigger_sync_rejects_when_already_running(client):
+    """When a sync is already in progress (tracker populated), another trigger
+    request must be rejected with 400."""
+    from datetime import datetime, timezone
+
+    from app.services.sync_progress import ProgressInfo
+
+    # Simulate a running sync by pre-populating the tracker
+    tracker.set("510300", ProgressInfo(
+        code="510300",
+        from_date=date(2024, 4, 19), to_date=date(2024, 4, 21),
+        current_date=date(2024, 4, 19),
+        total_days=3, completed_days=1,
+        overall_index=1, overall_total=3,
+        started_at=datetime.now(timezone.utc),
+    ))
+
+    r = client.post(
+        "/api/sync/historical/trigger",
+        params={"from_date": "2024-04-19", "to_date": "2024-04-21"},
+    )
+    assert r.status_code == 400
+    assert "already running" in r.json()["detail"]
+    # The existing sync's tracker state must NOT be cleared by the rejected request
+    assert tracker.is_active() is True

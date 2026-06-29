@@ -1,12 +1,12 @@
 # Checkpoint
 
-**写入时间**: 2026-06-29T15:00:22Z
+**写入时间**: 2026-06-29T15:01:44Z
 **项目根目录**: /Users/zane/Workspace/etf-momentum
-**阶段**: spec
+**阶段**: executing
 **活跃变更**: add-sync-progress-ui
 **分支**: feature/add-sync-progress-ui
 **父分支**: main
-**Plan 进度**: 0/49
+**Plan 进度**: 0/50
 
 ## 未完成的 Plan 项
 
@@ -36,9 +36,9 @@
 ## 最近修改的文件
 
 ```
+eef4e27 docs(sync-progress): add spec + plan for in-progress sync UI feature
 8a45ed5 docs(sync-progress): add proposal for in-progress sync UI feature
 10d3b0d docs(sync-progress): design for in-progress sync UI with date range picker
 f902f39 chore(archive): move dynamic-pool-consolidate to openspec archive
 a11b141 chore(dynamic-pool-consolidate): sync project-level spec
-66a6c2b refactor(ia): remove /history and /sync routes; trim sidebar to 2 tools
 ```

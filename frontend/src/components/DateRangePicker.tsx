@@ -19,6 +19,12 @@ function todayISO(offsetDays = 0): string {
   return d.toISOString().slice(0, 10);
 }
 
+function parseDate(iso: string): Date {
+  return new Date(iso + "T00:00:00");
+}
+
+const MS_PER_DAY = 86400000;
+
 export function DateRangePicker({
   open, onClose, onConfirm, isSubmitting, errorMessage,
 }: DateRangePickerProps) {
@@ -35,7 +41,10 @@ export function DateRangePicker({
   if (!open) return null;
 
   const fromInvalid = fromDate > toDate;
-  const canConfirm = !fromInvalid && !isSubmitting;
+  const rangeTooLarge =
+    fromDate <= toDate &&
+    (parseDate(toDate).getTime() - parseDate(fromDate).getTime()) / MS_PER_DAY + 1 > 730;
+  const canConfirm = !fromInvalid && !rangeTooLarge && !isSubmitting;
 
   return (
     <div role="dialog" aria-label="选择同步日期范围" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -73,6 +82,11 @@ export function DateRangePicker({
           {fromInvalid && (
             <p role="alert" className="text-xs text-red-600">
               from_date 必须早于或等于 to_date
+            </p>
+          )}
+          {rangeTooLarge && (
+            <p role="alert" className="text-xs text-red-600">
+              日期范围过大（最多 730 天）
             </p>
           )}
         </div>

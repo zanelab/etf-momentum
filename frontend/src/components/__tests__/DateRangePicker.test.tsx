@@ -66,4 +66,19 @@ describe("DateRangePicker", () => {
     await user.click(screen.getByRole("button", { name: /取消/ }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("confirm button disabled when range over 730 days", async () => {
+    const user = userEvent.setup();
+    render(<DateRangePicker open={true} onClose={() => {}} onConfirm={() => {}} isSubmitting={false} />);
+    const fromInput = screen.getByLabelText(/from/i);
+    const toInput = screen.getByLabelText(/to/i);
+    // today-800 → today is 801 days inclusive, which exceeds the 730-day cap
+    await user.clear(fromInput);
+    await user.type(fromInput, todayISO(-800));
+    await user.clear(toInput);
+    await user.type(toInput, todayISO(0));
+    const confirmBtn = screen.getByRole("button", { name: /开始同步/ });
+    expect(confirmBtn).toBeDisabled();
+    expect(screen.getByText(/日期范围过大/i)).toBeInTheDocument();
+  });
 });
