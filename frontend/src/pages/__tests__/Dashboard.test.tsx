@@ -58,7 +58,7 @@ describe("Dashboard", () => {
     });
     renderDashboard();
     await waitFor(() => expect(screen.getByText("资产概览")).toBeInTheDocument());
-    expect(screen.getByText("今日需要做的")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/今天没有需要做的/)).toBeInTheDocument());
     expect(screen.getByText("系统状态")).toBeInTheDocument();
     expect(screen.getByText("当前持仓")).toBeInTheDocument();
   });
@@ -84,7 +84,7 @@ describe("Dashboard", () => {
     await waitFor(() => expect(screen.getByText(/¥103,000/)).toBeInTheDocument());
   });
 
-  it("shows the action-call CTA when there are signals", async () => {
+  it("shows inline action table when there are signals", async () => {
     setupFetchMock({
       "/api/portfolio": {
         as_of: "2026-01-15",
@@ -106,9 +106,9 @@ describe("Dashboard", () => {
     });
     renderDashboard();
     await waitFor(() =>
-      expect(screen.getByText(/今天需要做 1 项操作/)).toBeInTheDocument(),
+      expect(screen.getByText(/本次需做 1 项操作/)).toBeInTheDocument(),
     );
-    expect(screen.getByRole("link", { name: /查看清单/ })).toHaveAttribute("href", "/signals");
+    expect(screen.getByText("要买入的")).toBeInTheDocument();
   });
 
   it("shows 'no action needed' when signals are empty", async () => {
@@ -129,7 +129,7 @@ describe("Dashboard", () => {
       "/api/configs/pool": [],
     });
     renderDashboard();
-    await waitFor(() => expect(screen.getByText(/今日不需要调整/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/今天没有需要做的/)).toBeInTheDocument());
   });
 
   it("renders an empty-state when there are no holdings", async () => {
