@@ -39,6 +39,8 @@ export type Portfolio = {
   total_market_value: number;
   total_cost: number;
   total_pnl: number;
+  available_cash: number;
+  net_value: number;
   holdings: PortfolioHolding[];
 };
 

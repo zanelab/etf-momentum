@@ -81,6 +81,8 @@ class PortfolioResponse(BaseModel):
     total_market_value: float
     total_cost: float
     total_pnl: float
+    available_cash: float
+    net_value: float
     holdings: list[PortfolioHoldingOut]
 
 
@@ -118,6 +120,8 @@ def portfolio(source: Optional[str] = Query(None, description="Data source overr
         total_market_value=round(total_market_value, 2),
         total_cost=round(total_cost, 2),
         total_pnl=round(total_market_value - total_cost, 2),
+        available_cash=round(100_000.0 - total_cost, 2),
+        net_value=round(total_market_value + (100_000.0 - total_cost), 2),
         holdings=rows,
     )
 
@@ -161,16 +165,22 @@ def signals_today(source: Optional[str] = Query(None, description="Data source o
 
     # Portfolio + total value
     holdings = get_mock_portfolio(as_of)
-    total_value = sum(
-        market.snapshot(h.code, as_of)["last_price"] * h.shares
-        for h in holdings
-        if _safe_snapshot(market, h.code, as_of) is not None
-    )
+    total_market_value = 0.0
+    total_cost = 0.0
+    for h in holdings:
+        snap = _safe_snapshot(market, h.code, as_of)
+        if snap is None:
+            continue
+        last_price = float(snap["last_price"])
+        total_market_value += last_price * h.shares
+        total_cost += h.cost_price * h.shares
+    available_cash = 100_000.0 - total_cost
+    total_value = available_cash + total_market_value
 
     sigs = generate_signals(
         targets=targets,
         holdings=holdings,
-        total_value=total_value if total_value > 0 else 100_000.0,
+        total_value=total_value,
         as_of=as_of,
         market=market,
         params=params,
