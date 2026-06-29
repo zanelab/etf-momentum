@@ -34,6 +34,11 @@ export function Dashboard() {
   );
   const actionCount = realSignals.length;
 
+  const lastSync = dynamicPool.data && dynamicPool.data[0]?.last_synced_at
+    ? new Date(dynamicPool.data[0].last_synced_at)
+    : null;
+  const isStale = lastSync !== null && (Date.now() - lastSync.getTime() > 24 * 60 * 60 * 1000);
+
   return (
     <div className="space-y-4">
       {/* 资产概览 */}
@@ -76,6 +81,11 @@ export function Dashboard() {
         </section>
 
         <section className="rounded border bg-card p-4">
+          {isStale && (
+            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+              ⚠ 动态池已过期（&gt;24h），建议 <Link to="/dynamic-pool" className="underline">立即同步</Link>
+            </div>
+          )}
           <h2 className="text-lg font-semibold">系统状态</h2>
           {health.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
           {health.data && (

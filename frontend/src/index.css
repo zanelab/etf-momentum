@@ -33,3 +33,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  header nav,
+  aside,
+  details {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
