@@ -91,6 +91,21 @@
 - **设计依据**：openspec 流程而非 docs/superpowers 流程——`openspec/changes/dashboard-flatten-20260629/{spec,plan,proposal}.md`
 - **测试覆盖**：前端 vitest 30 passed（9 个测试文件：AppShell/Sidebar/Dashboard/Dashboard.holdings/Dashboard.signals/Dashboard.stale-sync/DynamicPoolPage/app-shell-wiring/setup）；后端 pytest 165 passed（沿用，无新增）
 
+## ETF 历史数据同步可观测（etf-historical-sync 2026-06-29）
+
+- **目标**：解决"某只 ETF 是不是真的同步上了最新一天的数据？"的可观测性盲区
+- **数据范围**：`static_pool ∪ dynamic_pool`（去重）；每只 ETF 仅同步最新一根 bar（mock 走 fixtures；akshare 走真实源；接口已抽象为 `_read_latest_bar(code)`，生产实现待后续替换）
+- **同步触发**：
+  - 启动期（FastAPI `lifespan`）：失败容错，记录日志，**不**阻塞应用
+  - 手动：`POST /api/sync/historical/trigger`
+- **同步状态**：`ok` / `failed`（含 `error`）/ `missing`（数据源无该 ETF）；失败隔离——单只失败不阻塞其他
+- **API**：
+  - `GET /api/sync/historical/status` → `{as_of, etfs: [{code, name, last_synced_date, status, error?}]}`；池子未同步过的 ETF 标记 `status: "never"`
+  - `POST /api/sync/historical/trigger` → 同 schema + `synced_count` + `run_at`
+- **前端**：侧边栏"数据同步"入口 → `/sync`；表格 4 列（代码 | 名称 | 同步日期 | 状态）；状态徽章 `✓ 已同步` / `⚠ 失败` / `— 缺失` / `— 未同步`；立即同步按钮（loading 期间禁用）；空池子显示 `暂无 ETF`
+- **持久化**：摘要 JSON 写入 `backend/data/daily_sync/{YYYY-MM-DD}.json`（与原 mock 路径一致，row 扩展 `status` / `error` 字段）
+- **测试覆盖**：后端 pytest 172 用例（含本变更新增 7 个：sync_for_pool 3 个 + sync_api 4 个）；前端 vitest 33 用例（含本变更新增 3 个）
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？

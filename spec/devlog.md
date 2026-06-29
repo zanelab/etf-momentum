@@ -122,3 +122,23 @@
   - `Dashboard.test.tsx` 中测试名 `renders the four card headings` 现在略不准确——卡片总数仍为 4，但其中两张承载原独立页完整内容
   - 多处测试文件尾部换行不一致（沿用 M11.1 已知项）
 - 下一步：merge 阶段合入 main
+
+## etf-historical-sync 变更归档
+
+- 日期：2026-06-29（6 个 commit — 1 backend refactor + 1 backend refactor fix + 1 backend api + 1 frontend hooks + 1 frontend page + 1 docs sync，共 6 个）
+- 分支：`feature/etf-historical-sync`（基于 dashboard-flatten HEAD `d21e79d` fast-forward 后的 main）
+- 流程归属：openspec（`openspec/changes/etf-historical-sync/{proposal.md, spec.md, plan.md}`）
+- 范围：可观测性扩展——为 `static_pool ∪ dynamic_pool` 中每只 ETF 同步最新一根 bar 并暴露状态 API；新增 `/sync` 侧边栏页面
+- 关键产物（无 frontend 路由变更 / 无 nav 顶导变更）：
+  - **后端服务**：`sync_historical_for_pool(codes)` 替代原 `sync_today()`；后者保留为薄包装；每行新增 `status` / `error` 字段
+  - **后端 API**：`GET/POST /api/sync/historical/{status,trigger}`（`backend/app/api/sync.py`）；`lifespan` 启动同步容错化
+  - **前端 hooks**：`useSyncStatus()` / `useTriggerSync()`（`@/api/hooks.ts`）
+  - **前端页面**：`/sync` 表格 4 列 + 立即同步按钮 + 空池子占位；`Sidebar` 的 `TOOL_ENTRIES` 增补"数据同步"项
+- CI 验证：
+  - 前端：`npm test` 33 passed（30 既有 + 3 新增）/ `tsc --noEmit` 通过 / `npm run build` 通过
+  - 后端：`uv run pytest -q` 172 passed（165 既有 + 7 新增）/ `uv run ruff check` 通过
+- 已知限制（继承 M11.1）：mock 路径仅同步 fixtures；akshare 真实数据源在 `_read_latest_bar` 抽象处替换时需要新增 akshare 调用 + 重试
+- 新增/已知 minor（留待后续 M12.x）：
+  - `useSyncStatus` refetchInterval=10s；同步刚完成后未立即刷新到 UI（mutation onSuccess 已 invalidate，可考虑更短 polling）
+  - `_read_latest_bar` 接口预留 akshare 注入点；当前实现仅 fixtures
+- 下一步：merge 阶段合入 main
