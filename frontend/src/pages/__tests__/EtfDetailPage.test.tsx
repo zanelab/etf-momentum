@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -68,7 +68,9 @@ describe("EtfDetailPage", () => {
     renderAt("/dynamic-pool/510300.XSHG");
     await waitFor(() => {
       // title contains code + name
-      expect(screen.getByText(/510300\.XSHG\s*·\s*沪深300ETF/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 2, name: /510300\.XSHG\s*·\s*沪深300ETF/ })
+      ).toBeInTheDocument();
     });
     // back link exists
     expect(screen.getByText(/返回动态池/)).toBeInTheDocument();
@@ -117,8 +119,8 @@ describe("EtfDetailPage", () => {
     });
     renderAt("/dynamic-pool/510300.XSHG");
     const link = await waitFor(() => screen.getByText(/返回动态池/));
-    fireEvent.click(link);
-    expect(mockNavigate).toHaveBeenCalledWith("/dynamic-pool");
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("href")).toBe("/dynamic-pool");
   });
 
   it("renders without crashing when history is empty", async () => {

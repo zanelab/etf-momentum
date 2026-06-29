@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { useDynamicPool, useMarketHistory } from "@/api/hooks";
 
@@ -17,7 +17,6 @@ const fmtDate = (s: string) => s.slice(5); // MM-DD
 
 export default function EtfDetailPage() {
   const { code = "" } = useParams<{ code: string }>();
-  const navigate = useNavigate();
   const { data: pool } = useDynamicPool();
   const [start, setStart] = useState("2026-01-01");
   const [end, setEnd] = useState("2026-03-19");
@@ -35,13 +34,12 @@ export default function EtfDetailPage() {
   return (
     <section className="space-y-4">
       <header className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/dynamic-pool")}
+        <Link
+          to="/dynamic-pool"
           className="text-sm text-muted-foreground hover:underline"
         >
           ← 返回动态池
-        </button>
+        </Link>
         <h2 className="text-lg font-semibold">
           {code}
           {name ? ` · ${name}` : ""}
@@ -83,7 +81,8 @@ export default function EtfDetailPage() {
       {history.data && history.data.rows.length > 0 && (
         <div className="rounded border p-4">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            收盘价 & 成交量
+            {code}
+            {name ? ` · ${name}` : ""} · 收盘价 & 成交量
           </h3>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={history.data.rows}>
