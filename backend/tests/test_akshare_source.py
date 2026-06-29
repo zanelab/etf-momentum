@@ -110,7 +110,8 @@ def test_akshare_snapshot_returns_last_bar_dict(
 
 
 def test_akshare_all_etfs_returns_code_list(monkeypatch: pytest.MonkeyPatch) -> None:
-    """fund_etf_spot_em() returns columns 代码/名称 (East Money)."""
+    """fund_etf_spot_em() returns columns 代码/名称 (East Money); codes MUST be
+    normalized to canonical form (XXXXXX.XSHG/XSHE)."""
     fake = _install_fake_akshare(monkeypatch)
     fake.fund_etf_spot_em = lambda: pd.DataFrame(
         {
@@ -120,7 +121,29 @@ def test_akshare_all_etfs_returns_code_list(monkeypatch: pytest.MonkeyPatch) -> 
     )
     src = AkShareSource()
     codes = src.all_etfs(date(2026, 1, 15))
-    assert codes == ["510300", "510500", "159915"]
+    assert codes == ["510300.XSHG", "510500.XSHG", "159915.XSHE"]
+
+
+def test_akshare_all_etf_entries_returns_normalized_pairs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """all_etf_entries must return (canonical_code, name) pairs even when
+    akshare returns bare 6-digit codes."""
+    fake = _install_fake_akshare(monkeypatch)
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {
+            "代码": ["510300", "510500", "159915", "000001"],
+            "名称": ["沪深300ETF", "中证500ETF", "创业板ETF", "测试"],
+        }
+    )
+    src = AkShareSource()
+    entries = src.all_etf_entries(date(2026, 1, 15))
+    assert entries == [
+        ("510300.XSHG", "沪深300ETF"),
+        ("510500.XSHG", "中证500ETF"),
+        ("159915.XSHE", "创业板ETF"),
+        ("000001.XSHE", "测试"),
+    ]
 
 
 def test_akshare_falls_back_to_fixture_on_all_retries_exhausted(

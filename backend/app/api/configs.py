@@ -215,6 +215,23 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
 
     now = datetime.utcnow()
     with db_module.session_scope() as session:
+        # Migrate any legacy bare-code rows (older syncs may have stored
+        # `510300` instead of `510300.XSHG`). Doing this BEFORE the upsert
+        # loop lets `session.get(DynamicPoolEntry, canonical_code)` match
+        # migrated rows, avoiding duplicates of the same ETF.
+        from app.data_sources.codes import normalize_etf_code
+
+        legacy_rows = list(session.exec(select(DynamicPoolEntry)).all())
+        for r in legacy_rows:
+            if "." not in r.code:
+                try:
+                    r.code = normalize_etf_code(r.code)
+                    session.add(r)
+                except ValueError:
+                    # Unparseable legacy code; leave as-is so user can clean up manually.
+                    continue
+        session.flush()
+
         for code, name in entries:
             existing = session.get(DynamicPoolEntry, code)
             if existing is None:
@@ -243,8 +260,16 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
 
 @router.patch("/pool/dynamic/{code}", response_model=DynamicPoolEntryOut)
 def patch_dynamic_pool(code: str, body: DynamicPoolUpdate) -> DynamicPoolEntryOut:
+    from app.data_sources.codes import normalize_etf_code
+
+    # Normalize the path code so callers may use bare 6-digit form.
+    try:
+        canonical_code = normalize_etf_code(code)
+    except ValueError:
+        canonical_code = code  # fall through; lookup will return 404
+
     with db_module.session_scope() as session:
-        entry = session.get(DynamicPoolEntry, code)
+        entry = session.get(DynamicPoolEntry, canonical_code)
         if entry is None:
             raise HTTPException(
                 status_code=404, detail=f"DynamicPoolEntry not found: {code}"

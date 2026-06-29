@@ -11,6 +11,7 @@ from typing import Optional
 import pandas as pd
 
 from app.data_sources.base import DataNotFoundError, FieldName, MarketDataSource
+from app.data_sources.codes import normalize_etf_code
 from app.data_sources.fixture import FixtureCSVSource
 from app.data_sources.retry import retry_with_backoff
 
@@ -146,9 +147,31 @@ class AkShareSource(MarketDataSource):
             if self._fallback is not None:
                 return self._fallback.all_etf_entries(as_of)
             return []
-        codes = df[_NAME_COL_CODE].astype(str)
+        raw_codes = df[_NAME_COL_CODE].astype(str)
         if _NAME_COL_NAME in df.columns:
             names = df[_NAME_COL_NAME].astype(str)
         else:
-            names = codes  # fallback if name column missing
-        return list(zip(codes.tolist(), names.tolist()))  # noqa: B905
+            names = raw_codes  # fallback if name column missing
+        # Normalize akshare's bare 6-digit codes to canonical form so callers
+        # can dedupe against the static pool without format mismatch.
+        codes: list[str] = []
+        for raw in raw_codes.tolist():
+            try:
+                codes.append(normalize_etf_code(raw))
+            except ValueError:
+                # Skip codes we cannot normalize (defensive: akshare may surface
+                # non-standard codes); their names are dropped with them.
+                continue
+        valid_names = [n for raw, n in zip(raw_codes.tolist(), names.tolist())  # noqa: B905
+                       if _can_normalize(raw)]
+        return list(zip(codes, valid_names))  # noqa: B905
+
+
+def _can_normalize(code: str) -> bool:
+    """Return True if `code` can be normalized; False otherwise (used to
+    parallel-filter names when normalization drops a code)."""
+    try:
+        normalize_etf_code(code)
+        return True
+    except ValueError:
+        return False

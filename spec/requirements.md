@@ -48,6 +48,12 @@
 - **动态池同步**：`POST /api/configs/pool/dynamic/sync` 必须走 akshare（不受 `ETF_DATA_SOURCE` 影响）；返回 200 `{synced, total, enabled}` / 503 akshare 缺失 / 502 akshare 拉取失败
 - **前端面板**：`/datasource` 页面展示健康状态、缓存命中统计、动态池列表与同步按钮
 
+## ETF 代码归一化（akshare-code-normalization 2026-06-29）
+
+- **规范格式**：系统内 ETF 代码统一使用 `XXXXXX.XSHG`（上海）或 `XXXXXX.XSHE`（深圳）带后缀形式；akshare 返回的 6 位裸码由 `app/data_sources/codes.normalize_etf_code` 在 4 个接入点统一归一（akshare 返回、动态池 upsert key、`filter_etfs` 池合并、`load_display_names` 查表）
+- **交易所推断**：6 位裸码首字符规则 — 5/6 → XSHG、1/0/3 → XSHE
+- **向后兼容**：所有归一化点同时接受裸码与带后缀输入；存量裸码 row 在下次 `POST /api/configs/pool/dynamic/sync` 时自动迁移到 canonical form
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？

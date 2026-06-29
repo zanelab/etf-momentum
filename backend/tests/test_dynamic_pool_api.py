@@ -137,11 +137,13 @@ def test_sync_returns_enabled_count(client: TestClient, monkeypatch) -> None:
     import pandas as pd
 
     now = datetime.utcnow()
+    # Use valid 6-digit codes so normalization accepts them; akshare normalizes
+    # to canonical form during all_etf_entries.
     with session_scope(get_engine()) as s:
-        s.add(DynamicPoolEntry(code="A", name="a-old", is_enabled=True, last_synced_at=now))
-        s.add(DynamicPoolEntry(code="B", name="b-old", is_enabled=False, last_synced_at=now))
+        s.add(DynamicPoolEntry(code="510300.XSHG", name="a-old", is_enabled=True, last_synced_at=now))
+        s.add(DynamicPoolEntry(code="510500.XSHG", name="b-old", is_enabled=False, last_synced_at=now))
     fake.fund_etf_spot_em = lambda: pd.DataFrame(
-        {"代码": ["A", "B"], "名称": ["a-new", "b-new"]}
+        {"代码": ["510300", "510500"], "名称": ["a-new", "b-new"]}
     )
     monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
 
@@ -268,3 +270,88 @@ def test_sync_returns_502_when_akshare_returns_empty(client: TestClient, monkeyp
     resp = client.post("/api/configs/pool/dynamic/sync")
     assert resp.status_code == 502
     assert "empty" in resp.json()["detail"].lower()
+
+
+def test_sync_normalizes_codes_to_canonical_form(client: TestClient, monkeypatch) -> None:
+    """Given akshare returns bare 6-digit codes (real akshare behavior),
+    When sync runs, all stored codes MUST be canonical form (`510300.XSHG`),
+    never bare (`510300`). Protects against format drift."""
+    fake = _inject_fake_akshare(monkeypatch)
+    import pandas as pd
+
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300", "510500", "159915"], "名称": ["沪深300", "中证500", "创业板"]}
+    )
+    monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 200
+
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry).order_by(DynamicPoolEntry.code)).all())
+        codes = sorted(r.code for r in rows)
+        # All codes MUST be in canonical form. Order is alphabetical string sort.
+        assert codes == ["159915.XSHE", "510300.XSHG", "510500.XSHG"], f"got {codes}"
+
+
+def test_sync_upsert_key_dedupes_legacy_bare_code_row(
+    client: TestClient, monkeypatch
+) -> None:
+    """Given an existing row with bare code '510300' (legacy from prior sync),
+    when sync runs and akshare returns '510300', the row MUST be updated
+    in place — NOT create a duplicate row '510300.XSHG'."""
+    fake = _inject_fake_akshare(monkeypatch)
+    import pandas as pd
+
+    legacy_now = datetime(2025, 1, 1, 0, 0, 0)
+    with session_scope(get_engine()) as s:
+        s.add(
+            DynamicPoolEntry(
+                code="510300",
+                name="legacy-name",
+                is_enabled=True,
+                last_synced_at=legacy_now,
+            )
+        )
+
+    fake.fund_etf_spot_em = lambda: pd.DataFrame(
+        {"代码": ["510300"], "名称": ["new-name"]}
+    )
+    monkeypatch.setenv("ETF_DATA_SOURCE", "akshare")
+
+    resp = client.post("/api/configs/pool/dynamic/sync")
+    assert resp.status_code == 200
+
+    with session_scope(get_engine()) as s:
+        rows = list(s.exec(select(DynamicPoolEntry)).all())
+        assert len(rows) == 1, f"expected 1 row, got {len(rows)}"
+        row = rows[0]
+        # Code is now canonical (AkShareSource.all_etf_entries normalizes)
+        assert row.code == "510300.XSHG"
+        # is_enabled preserved from legacy state
+        assert row.is_enabled is True
+        # name refreshed from akshare
+        assert row.name == "new-name"
+        # last_synced_at advanced past legacy
+        assert row.last_synced_at > legacy_now
+
+
+def test_patch_normalizes_code_in_path(client: TestClient) -> None:
+    """Given an existing row with canonical code '510300.XSHG',
+    when PATCH /pool/dynamic/510300 (bare code) is called,
+    the endpoint MUST normalize the path code and find the row.
+    Without normalization, this returns 404."""
+    with session_scope(get_engine()) as s:
+        s.add(
+            DynamicPoolEntry(
+                code="510300.XSHG",
+                name="沪深300",
+                is_enabled=False,
+                last_synced_at=datetime.utcnow(),
+            )
+        )
+
+    resp = client.patch("/api/configs/pool/dynamic/510300", json={"is_enabled": True})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["code"] == "510300.XSHG"
+    assert resp.json()["is_enabled"] is True
