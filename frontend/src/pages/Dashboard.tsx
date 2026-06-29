@@ -66,7 +66,7 @@ export function Dashboard() {
         )}
       </section>
 
-      {/* 今日调仓 (inlined from /signals) */}
+      {/* 今日调仓 (inlined) */}
       <section className="rounded border bg-card p-4">
         {signals.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
         {signals.isError && (
@@ -214,7 +214,7 @@ export function Dashboard() {
         </Link>
       </section>
 
-      {/* 当前持仓 (inlined from /portfolio) */}
+      {/* 当前持仓 (inlined) */}
       <section className="rounded border bg-card p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold"><span aria-hidden>📋 </span>当前持仓</h2>
