@@ -73,6 +73,24 @@
   - 新增 `filter_etfs_detailed(...)` 服务函数，保留 `filter_etfs` 旧签名（`backtest.py` 不变）
 - **测试覆盖**：前端 vitest + RTL + jsdom（29 用例覆盖 AppShell/Sidebar/Dashboard/Signals/DynamicPoolPage/screening-redirect/app-shell-wiring/stale-sync）；后端 pytest 165 用例（含 M11 新增 2）
 
+## Dashboard 化整为零（dashboard-flatten 2026-06-29）
+
+- **目标**：进一步简化 IA——把"周度再平衡"用户最常用的两类信息（调仓清单 + 当前持仓）从独立路由折叠进首页 Dashboard；让"一次访问 = 一次决策完成"
+- **导航结构**：
+  - **顶部 2 项**：`仪表盘` (/) + `设置`（按钮 → 唤起侧边栏）
+  - **侧边栏 7+1 不变**（divider 分隔）：`静态池` (/pool)、`主题词典` (/themes)、`策略参数` (/strategy)、`动态池` (/dynamic-pool)、divider、`回测` (/backtest)、`历史数据` (/history)、`数据源` (/datasource)
+  - **路由清理**：移除 `/signals` 与 `/portfolio` 路由；移除 `/screening` → `/signals` 兼容重定向（不再需要）
+  - **通配路由**：未知 URL 跳转 `/`（保留）
+- **首页 Dashboard 卡片重排**（cards 仍是 4 张，但其中两张承载原独立页内容）：
+  - **资产概览**（净值/市值/成本/盈亏/可用）
+  - **今日需要做的**（动作数 + CTA；内联完整周度操作清单——`要卖出的` / `要买入的` 表格含代码/名称/数量/金额 + 每行 `📋 复制` + 全局 `📋 复制完整调仓清单` + 防御模式 banner + `▶ 进阶：为什么这样选` per-ETF 折叠表 + `▶ 原始筛选输出` JSON 折叠）
+  - **系统状态**（健康/缓存/动态池/最后同步；过期动态池 amber 横幅 + 立即同步链接）
+  - **当前持仓**（完整 7 列持仓表：代码/名称/数量/成本价/现价/市值/盈亏——不再是 Top-5）
+- **文件层面**：删除 `frontend/src/pages/Portfolio.tsx` 与 `frontend/src/pages/Signals.tsx`；`Dashboard.tsx` 整合两个卡片，新增 `Dashboard.holdings.test.tsx` + `Dashboard.signals.test.tsx`；移除 `screening-redirect.test.tsx`
+- **后端**：无改动（沿用 user-journey-reorg 产出的 `PortfolioResponse` 与 `ScreeningTodayResponse` / `details` 字段）
+- **设计依据**：openspec 流程而非 docs/superpowers 流程——`openspec/changes/dashboard-flatten-20260629/{spec,plan,proposal}.md`
+- **测试覆盖**：前端 vitest 30 passed（9 个测试文件：AppShell/Sidebar/Dashboard/Dashboard.holdings/Dashboard.signals/Dashboard.stale-sync/DynamicPoolPage/app-shell-wiring/setup）；后端 pytest 165 passed（沿用，无新增）
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？

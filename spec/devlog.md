@@ -96,3 +96,29 @@
   - `@vitest/ui` 已装但缺 `test:ui` script
   - 前端 `.toFixed()` 缺 `Number.isFinite` 防御（后端测试已覆盖）
 - 下一步：merge 阶段合入 main
+
+## dashboard-flatten 变更归档
+
+- 日期：2026-06-29（4 个 commit — 3 feature + 1 chore followup）
+- 分支：`feature/dashboard-flatten`（基于 user-journey-reorg HEAD `7549550` fast-forward 后的 main）
+- 设计/计划文档：
+  - 流程归属：**openspec**（非 docs/superpowers）——`openspec/changes/dashboard-flatten-20260629/{proposal.md, spec.md, plan.md}`
+- 范围：Dashboard 化整为零——把周度操作清单与当前持仓从独立路由折叠进首页 Dashboard；顶层 IA 从 4-entry nav 收敛为 2-entry nav
+- 关键产物（无后端改动）：
+  - **路由清理**：`frontend/src/App.tsx` 移除 `<Route path="/portfolio">`、`<Route path="/signals">`、`<Route path="/screening">`（兼容重定向不再需要）；保留 `*` → `/` 通配
+  - **顶部导航**：`AppShell.TOP_NAV` 由 4 项减为 2 项——`仪表盘` + `设置`（按钮唤起侧边栏）
+  - **页面删除**：`frontend/src/pages/Portfolio.tsx`（85 行）与 `frontend/src/pages/Signals.tsx`（206 行）整文件删除
+  - **Dashboard.tsx 内联**：新增完整 7 列持仓表卡片（代码/名称/数量/成本价/现价/市值/盈亏，不限 Top-5）；`今日需要做的` 卡片内联周度操作清单——SELL/BUY 表 + 每行 `📋 复制` + 全局复制按钮 + 防御模式 banner + `▶ 进阶` per-ETF 折叠（momentum_score/annual_return/r2/volume_ratio?）+ `▶ 原始输出` JSON 折叠
+  - **测试迁移**：原 `Signals.test.tsx` 改名为 `Dashboard.signals.test.tsx`；新增 `Dashboard.holdings.test.tsx`（3 用例）；删除 `screening-redirect.test.tsx`；`app-shell-wiring.test.tsx` 断言更新为 2-entry nav
+  - **chore followup**（commit `98dd65b`）：清理 Dashboard.tsx 内联段中残留的 stale `/signals` `/portfolio` 路径注释
+- 实施过程：3 个 subagent-driven-development 任务（inline /signals / inline /portfolio / route+nav cleanup）+ 1 个 whole-branch review 触发的 chore followup
+- CI 验证：
+  - 前端：`npm test` **30 passed**（9 个 test files）/ `npm run lint`（tsc --noEmit）clean / `npm run build` 成功（dist 641.54 kB）
+  - 后端：`uv run pytest -q` **165 passed**（沿用，无新增）/ `uv run ruff check` clean
+  - 整合：manual smoke — `/` 渲染完整 Dashboard，无顶部链接指向 `/signals` 或 `/portfolio`；Settings 侧边栏照常
+- 已知限制（从 user-journey-reorg 继承）：动态池手动同步、akshare 缓存过刷写
+- 新增/已知 minor（留待后续 M12.1）：
+  - `Dashboard.tsx` 中 `money` / `formatMoney` 辅助函数在资产概览卡与持仓表卡各重复实现一次（应抽出为共享 helper）
+  - `Dashboard.test.tsx` 中测试名 `renders the four card headings` 现在略不准确——卡片总数仍为 4，但其中两张承载原独立页完整内容
+  - 多处测试文件尾部换行不一致（沿用 M11.1 已知项）
+- 下一步：merge 阶段合入 main
