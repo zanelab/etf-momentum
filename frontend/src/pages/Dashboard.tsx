@@ -16,12 +16,6 @@ function money(value: number | undefined): string {
   return new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
 }
 
-function pct(numerator: number, denominator: number): string {
-  if (!denominator) return "—";
-  const v = (numerator / denominator) * 100;
-  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
-}
-
 export function Dashboard() {
   const portfolio = usePortfolio();
   const signals = useSignalsToday();
@@ -220,42 +214,46 @@ export function Dashboard() {
         </Link>
       </section>
 
-      {/* 当前持仓 */}
+      {/* 当前持仓 (inlined from /portfolio) */}
       <section className="rounded border bg-card p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold"><span aria-hidden>📋 </span>当前持仓<span className="text-sm font-normal text-muted-foreground">（Top 5）</span></h2>
-          {portfolio.data && portfolio.data.holdings.length > 0 && (
-            <Link to="/portfolio" className="text-sm underline">查看全部持仓 →</Link>
-          )}
+          <h2 className="text-lg font-semibold"><span aria-hidden>📋 </span>当前持仓</h2>
         </div>
         {portfolio.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
         {portfolio.data && portfolio.data.holdings.length === 0 && (
           <p className="mt-2 text-sm text-muted-foreground">暂无持仓</p>
         )}
         {portfolio.data && portfolio.data.holdings.length > 0 && (
-          <table className="mt-2 w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
-              <tr>
-                <th>代码</th><th>名称</th><th>现价</th><th>数量</th><th>浮盈亏</th><th>比例</th>
-              </tr>
-            </thead>
-            <tbody>
-              {portfolio.data.holdings.slice(0, 5).map((h) => (
-                <tr key={h.code} className="border-t">
-                  <td className="font-mono">{h.code}</td>
-                  <td>{nameByCode[h.code] ?? "—"}</td>
-                  <td>¥{h.current_price.toFixed(2)}</td>
-                  <td>{h.shares.toLocaleString()}</td>
-                  <td className={h.pnl >= 0 ? "text-emerald-700" : "text-red-600"}>
-                    {money(h.pnl)}
-                  </td>
-                  <td className={h.pnl >= 0 ? "text-emerald-700" : "text-red-600"}>
-                    {pct(h.pnl, h.cost_price * h.shares)}
-                  </td>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1.5">代码</th>
+                  <th className="px-2 py-1.5">名称</th>
+                  <th className="px-2 py-1.5 text-right">持仓数量</th>
+                  <th className="px-2 py-1.5 text-right">成本价</th>
+                  <th className="px-2 py-1.5 text-right">现价</th>
+                  <th className="px-2 py-1.5 text-right">市值</th>
+                  <th className="px-2 py-1.5 text-right">浮动盈亏</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {portfolio.data.holdings.map((h) => (
+                  <tr key={h.code} className="border-t">
+                    <td className="px-2 py-1.5 font-mono">{h.code}</td>
+                    <td className="px-2 py-1.5">{nameByCode[h.code] ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-right">{h.shares.toLocaleString()}</td>
+                    <td className="px-2 py-1.5 text-right">{h.cost_price.toFixed(2)}</td>
+                    <td className="px-2 py-1.5 text-right">{h.current_price.toFixed(2)}</td>
+                    <td className="px-2 py-1.5 text-right">{money(h.market_value)}</td>
+                    <td className={`px-2 py-1.5 text-right ${h.pnl >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                      {money(h.pnl)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
