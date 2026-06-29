@@ -166,3 +166,42 @@
   - 下钻子页未复用 `useMarketList` 的下拉（沿用动态池的 code 上下文）
   - `useMarketList` 与 `useMarketHistory` 仍导出但前端无使用方（保留 hooks 不变，待后续清理）
 - 下一步：merge 阶段合入 main
+
+## add-sync-progress-ui 变更归档
+
+- 日期：2026-06-29（plan 50/50，10 个 commit — 4 docs + 6 feature/fix）
+- 分支：`feature/add-sync-progress-ui`（基于 dynamic-pool-consolidate HEAD `f902f39` fast-forward 后的 main）
+- 流程归属：openspec（`openspec/changes/add-sync-progress-ui/{proposal.md, design.md, spec.md, plan.md}`）
+- 范围：同步进度可视化 + 日期范围支持——把粗粒度「同步中…」按钮 disabled 升级为细粒度 (code, date) 进度展示，同时让「补同步一段历史」成为一等操作
+- 关键产物：
+  - **后端服务**：
+    - `app/services/sync_progress.py`（**新**）：`SyncProgressTracker` 进程内单例（`dict[code, ProgressInfo]`）；`ProgressInfo` Pydantic 模型；模块级 `tracker = SyncProgressTracker()` 实例
+    - `app/services/daily_sync.py`（**改**）：`sync_historical_for_pool(codes, from_date, to_date)` 双层循环重构（外 code、内 offset），每步更新 tracker；新增 `_read_bar_for_date(code, target_date)`；`sync_today(target_date)` 保留为薄包装
+    - `app/main.py`（**改**）：startup hook 改用 30 天窗口（`from=today-30, to=today`）
+    - `app/api/sync.py`（**改**）：`trigger_sync` 改 `Query` 参数（`from_date` / `to_date` 必填）；4 条 400 校验（from>to / from 在未来 / 跨度>730 / 并发防御）；`get_sync_status` 合并 `in_progress` + `is_running`；`MAX_RANGE_DAYS = 730`
+    - `app/schemas.py`（**改**）：`SyncStatusResponse` 扩展 `in_progress` / `is_running`；`SyncTriggerResult` 扩展 `from_date` / `to_date` 回显
+  - **前端组件**：
+    - `<DateRangePicker>`（**新**）：Modal + 2 个 `<input type="date">` + 「开始同步」「取消」；客户端预校验（from<=to + 跨度<=730，对齐后端）；错误 `role="alert"` 内联
+    - `<SyncProgressBanner>`（**新**）：表格顶部横幅；`done/max(overall_index)/overall_total` + 百分比进度条 + 当前 code / `current_date` / `total_days` 天
+    - `<RowProgressBar>`（**新**）：表格行内进度条 + `aria-valuenow` + `current_date / total_days 天` 文本
+    - `<SyncStatusBadge>`（**未改**：本期不需要，in-progress 行渲染 `<RowProgressBar>`，其余行照旧）
+  - **前端 hooks/页面**：
+    - `useTriggerSync`（**改**）：签名变 `mutate({ from_date, to_date })` 必填，URL 拼 query string
+    - `useSyncStatus`（**未改**：保留 10s 轮询；现在终于有意义了）
+    - `DynamicPoolPage`（**改**）：接入 `DateRangePicker`；新增 `pickerOpen` / `syncError` state；`anyPending` 增加 `isRunning` 维度（按钮在 sync 期间也 disabled）；in-progress 行渲染 `<RowProgressBar>`；`SyncProgressBanner` 条件渲染
+  - **测试**：
+    - 后端：5（tracker 单测） + 5（daily_sync 扩展：`_read_bar_for_date` 3 + `sync_historical_for_pool` 2） + 7（api 端点：422 / 400×4 / 200 / 并发 / inactive） + 1（fix 追加并发 trigger） = 19 新增，191 总量（172 → 191）
+    - 前端：8（DateRangePicker 含 730-day） + 3（SyncProgressBanner） + 2（RowProgressBar） + 1（useTriggerSync mutation） + 4（DynamicPoolPage 集成） = 18 新增，56 总量（38 → 56）
+- 实施过程：6 个 subagent-driven-development 任务（Task 1–6）+ Task 7 全栈 CI 验证 + final review 触发的 fix wave（commit 73cee3f：730-day 客户端校验 + 并发 trigger 测试）
+- CI 验证：
+  - 前端：`npm test` 56 passed（11 个 test files）/ `tsc --noEmit` 通过 / `npm run build` 通过
+  - 后端：`uv run pytest -q` 191 passed / `uv run ruff check` clean
+  - 整合：manual smoke 11/11 步骤通过 — Modal 弹出 / 默认值 / 校验 / 范围触发 / Network 观察 / 进度展示 / 行内 / 完成后清除 / 按钮 disabled / 后端 400 / 跨 tab refetch
+- 已知限制（Minor，不阻塞）：
+  - `_read_bar_for_date` 每次调用 `pd.read_csv` 全量读 fixture（47 codes × 200 days ≈ 9400 次读）；mock 路径无感，真实数据源接入后需替换实现或加缓存
+  - `_read_latest_bar` 现为 dead code（被 `_read_bar_for_date` 替代），可后续清理
+  - 进度展示依赖 10s 轮询；极短同步（< 10s）可能错过横幅展示（mock fixture 实测 < 1s），但 `refetchOnWindowFocus` 切回 tab 兜底
+- 新增/已知 minor（留待后续 M14.x）：
+  - `useDynamicPool` 5s 轮询仍在 `/dynamic-pool` 运行（独立 PR 处理）
+  - 同步运行时如需「取消」按钮需新增 `POST /api/sync/historical/cancel` 端点（本期 out-of-scope）
+- 下一步：merge 阶段合入 main

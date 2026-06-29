@@ -39,7 +39,8 @@ etf-momentum/
 │   │   │   ├── backtest.py          # 日级回放引擎
 │   │   │   ├── backtest_task.py     # JSON 文件任务生命周期
 │   │   │   ├── portfolio_mock.py    # 模拟持仓
-│   │   │   ├── daily_sync.py        # 收盘同步（_read_latest_bar + sync_historical_for_pool + sync_today 薄包装）
+│   │   │   ├── daily_sync.py        # 收盘同步（_read_bar_for_date + sync_historical_for_pool[codes,from,to] + sync_today 薄包装）
+│   │   │   ├── sync_progress.py     # SyncProgressTracker 进程内单例 + ProgressInfo 模型（M14 新增）
 │   │   │   └── today.py             # 当日解析 + DB 装载
 │   │   ├── data_sources/   # MarketDataSource 抽象 + FixtureCSVSource + AkShareSource + CachedSource
 │   │   │   ├── __init__.py          # make_source(name) 工厂
@@ -77,17 +78,20 @@ etf-momentum/
 │   │   │   ├── DataSource.tsx              # 数据源 + 缓存统计
 │   │   │   ├── DynamicPoolPage.tsx         # 动态池中枢（双同步按钮 + 状态列 + 行点击下钻）
 │   │   │   └── EtfDetailPage.tsx           # /dynamic-pool/:code 下钻子页（K 线 + 软兜底）
-│   │   ├── components/      # AppShell + Sidebar（顶部 2 项 + 侧边栏 4+2）+ SyncStatusBadge
+│   │   ├── components/      # AppShell + Sidebar（顶部 2 项 + 侧边栏 4+2）+ SyncStatusBadge + 进度组件
 │   │   │   ├── AppShell.tsx                # 顶部 2 项 + Outlet 容器
 │   │   │   ├── Sidebar.tsx                 # 侧边栏 CONFIG_ENTRIES 4 + TOOL_ENTRIES 2（回测、数据源）
-│   │   │   └── SyncStatusBadge.tsx         # 4 状态徽章（ok/failed/missing/never）— 主页与子页共用
+│   │   │   ├── SyncStatusBadge.tsx         # 4 状态徽章（ok/failed/missing/never）— 主页与子页共用
+│   │   │   ├── DateRangePicker.tsx         # 同步日期范围选择 Modal（M14 新增）
+│   │   │   ├── SyncProgressBanner.tsx      # 表格顶部进度横幅（M14 新增）
+│   │   │   └── RowProgressBar.tsx          # 表格行内进度条（M14 新增）
 │   │   ├── App.tsx         # 路由（/、/pool、/themes、/strategy、/backtest、/datasource、/dynamic-pool、/dynamic-pool/:code）
 │   │   └── main.tsx        # 入口
 │   └── package.json
 ├── spec/                   # 项目级 Spec（累积式维护）
 │   ├── requirements.md
 │   ├── design.md
-│   ├── tasks.md            # M0–M13 全部 ✅
+│   ├── tasks.md            # M0–M14 全部 ✅
 │   ├── devlog.md
 │   └── structure.md        # 本文档
 ├── openspec/
@@ -100,7 +104,8 @@ etf-momentum/
 │           ├── akshare-code-normalization-20260629 # M10：代码归一化
 │           ├── dashboard-flatten-20260629         # M11.1：Dashboard 化整为零
 │           ├── etf-historical-sync-20260629       # M12：历史同步可观测
-│           └── dynamic-pool-consolidate-20260629  # M13：动态池中枢化（合并 /history /sync + 下钻子页）
+│           ├── dynamic-pool-consolidate-20260629  # M13：动态池中枢化（合并 /history /sync + 下钻子页）
+│           └── add-sync-progress-ui-20260629      # M14：同步进度可视化 + 日期范围支持
 ├── scripts/                # speccoding 工具脚本
 │   ├── speccoding-state.sh
 │   ├── speccoding-gate.sh

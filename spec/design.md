@@ -190,3 +190,90 @@ backend/app/data_sources/
 - 中部：动态池表格 + 名称过滤 + 行内启用开关（`useToggleDynamicEntry`）
 - 底部：「立即同步」按钮 + 「同步源: akshare」内联提示（`useSyncDynamicPool`）
 - 错误展示：`ApiError.detail` 直接显示，避免「API 503:」前缀污染
+
+## 同步进度可视化（add-sync-progress-ui 2026-06-29）
+
+### 进程内进度跟踪器
+
+```
+backend/app/services/sync_progress.py
+├── ProgressInfo (Pydantic BaseModel)
+│   code / from_date / to_date / current_date
+│   total_days / completed_days
+│   overall_index / overall_total
+│   started_at
+└── SyncProgressTracker
+    ├── _by_code: dict[str, ProgressInfo]
+    ├── set(code, info)         # 写入或覆盖
+    ├── get_all() -> list       # 返回全部 in-progress
+    ├── clear()                 # 同步完成/异常时调用
+    └── is_active() -> bool     # dict 非空即为 active
+
+# module-level singleton
+tracker = SyncProgressTracker()
+```
+
+**为什么是进程内单例而不是 BackgroundTasks + 状态文件**：
+- 同步窗口在 mock fixture 上 < 10s（47 codes × 200 days），不需要跨重启恢复
+- 避免引入 BackgroundTasks 的额外状态文件持久化层
+- 测试隔离简单：测试构造独立 `SyncProgressTracker()` 实例；autouse fixture `tracker.clear()` 守护 module singleton
+
+### 双层循环 + 整体索引
+
+```
+for code in codes:                       # 外层：code-major
+    for offset in range(total_days):     # 内层：日期-major
+        read_bar(code, from_date + offset)
+        overall_index += 1
+        tracker.set(code, ProgressInfo(...))
+```
+
+- `overall_index` 单调递增 → 前端 `Math.max(...)` 直接得「当前总步数」
+- `completed_days = offset + 1` → 该 code 已完成的天数
+- 单 (code, date) 异常不中断后续（per-row try/except）；`status: failed` 落盘但不更新异常文案
+
+### 同步状态 schema
+
+```
+SyncStatusResponse
+├── as_of: str | null
+├── etfs: list[SyncETFStatus]                 # 既有
+├── in_progress: list[ProgressInfo] | None    # 新增（None 表示未运行）
+└── is_running: bool                          # 新增
+
+SyncTriggerResult extends SyncStatusResponse
+├── synced_count: int                         # 既有
+├── run_at: datetime                          # 既有
+├── from_date: date                           # 新增（回显入参）
+└── to_date: date                             # 新增
+```
+
+- `in_progress` 与 `is_running` 均为 Optional（旧 mock 仍合法）
+- `SyncTriggerResult` 把 `from_date/to_date` 回显，前端可用于错误恢复
+
+### 前端进度流
+
+```
+DynamicPoolPage
+├── DateRangePicker (modal)
+│   ├── 默认 from=today-30 / to=today
+│   ├── 客户端校验：from<=to + 跨度<=730（与后端 MAX_RANGE_DAYS 对齐）
+│   ├── 错误：role="alert" 内联展示 detail
+│   └── onConfirm({from_date,to_date}) → useTriggerSync.mutate(...)
+├── useTriggerSync
+│   ├── POST /api/sync/historical/trigger?from_date=...&to_date=...
+│   ├── onSuccess → setQueryData + invalidate ["sync-historical-status"]
+│   └── 错误 → Modal 顶部展示，按钮恢复可点
+├── useSyncStatus (10s polling, refetchOnWindowFocus default)
+│   └── data.in_progress → <SyncProgressBanner>
+│                          └── 各 code → <RowProgressBar>
+└── 按钮 disabled 条件
+    ├── anyPending (mutation isPending)
+    └── isRunning (status.is_running)
+```
+
+### 复用 vs 重构取舍
+
+- **保留 `useSyncStatus` 10s 轮询**：不引入新传输层（SSE/WebSocket），复用现有架构。代价是极短同步（< 10s）可能错过进度展示，但 `refetchOnWindowFocus` 兜底
+- **`SyncStatusResponse` 字段向后兼容**：`in_progress` / `is_running` 均为 Optional，旧 mock 不传也合法
+- **`useTriggerSync` 签名改为必填 `{from_date, to_date}`**：单一调用方 `DynamicPoolPage`，破坏性更新受控；type-level 阻止旧调用方式编译通过

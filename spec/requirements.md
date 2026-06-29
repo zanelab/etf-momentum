@@ -123,6 +123,39 @@
 - **侧边栏**：`TOOL_ENTRIES` 由 4 → 2（仅回测、数据源）
 - **测试覆盖**：前端 vitest 38 passed（33 既有 + 4 DynamicPoolPage 新增 + 4 EtfDetailPage 新增 - 3 SyncStatus 旧用例删除 = 净增 5）；后端 pytest 172 沿用
 
+## 同步进度可视化（add-sync-progress-ui 2026-06-29）
+
+- **目标**：解决「点了同步按钮后不知道在干嘛」的可观测性盲区——把粗粒度「同步中…」按钮 disabled 升级为细粒度 (code, date) 进度展示；同时补上日期范围选择能力，让「补同步一段历史」成为一等操作
+- **后端**：
+  - 新增 `app/services/sync_progress.py`：`SyncProgressTracker` 进程内单例（dict[code, ProgressInfo]）；`ProgressInfo(code, from_date, to_date, current_date, total_days, completed_days, overall_index, overall_total, started_at)`；模块级 `tracker = SyncProgressTracker()` 实例
+  - 重构 `sync_historical_for_pool(codes, from_date, to_date)`：双层 for 循环（外 code、内 offset），每步更新 tracker；每 row 新增 `status: ok/missing/failed`；单 (code, date) 异常隔离（per-row try/except）
+  - 新增 `_read_bar_for_date(code, target_date)`：从 fixture CSV 读指定日期的 bar，未命中返回 `None`（标注 `missing` 而非 `failed`）
+  - `sync_today(target_date=None)` 保留为薄包装；None 时退化用 fixture 末日（向后兼容）
+  - startup hook 改用 `from_date=today-30, to_date=today` 默认窗口
+  - `trigger_sync` 改 `Query` 参数（`from_date` / `to_date` 必填）；4 条 400 校验：from>to / from 在未来 / 跨度 > 730 天 / `tracker.is_active()`（并发防御）；失败/成功路径均 `tracker.clear()`
+  - `get_sync_status` 合并 `in_progress: list[ProgressInfo] | None` + `is_running: bool` 字段（Optional，向后兼容）
+  - `SyncStatusResponse` / `SyncTriggerResult` schema 扩展；`SyncTriggerResult` 新增 `from_date` / `to_date` 回显字段
+  - `MAX_RANGE_DAYS = 730` 常量
+- **前端**：
+  - 新增 `<DateRangePicker>` Modal（`frontend/src/components/`）：默认 `from=today-30` / `to=today`；2 个 `<input type="date">` + 「开始同步」「取消」按钮；客户端预校验 `from<=to` + 跨度 ≤ 730（与后端对齐；错误内联展示）
+  - 新增 `<SyncProgressBanner>`：表格顶部横幅，显示 `done/overall_total` + 百分比进度条 + 当前 code / `current_date` / `total_days` 天；`done = max(overall_index)` 跨多个 code 聚合
+  - 新增 `<RowProgressBar>`：表格行内进度条，`aria-valuenow` + `current_date / total_days 天` 文本；接替原 `<SyncStatusBadge>` 渲染位置（仅 in-progress 行）
+  - `useTriggerSync` 签名变更：`mutate({ from_date, to_date })` 必填（query string 形式，不再无参）
+  - `useSyncStatus` 保留 10s 轮询（现有架构最小改动；现在有意义了）
+  - `DynamicPoolPage` 接入：`anyPending` 增加 `isRunning` 维度（按钮在 sync 期间也 disabled）；确认 Picker 后 mutate 调用；`refetchOnWindowFocus` 默认行为确保切回 tab 看到最新进度
+- **错误处理**：
+  - 后端 400 在 Modal 顶部 `role="alert"` 区域显示 `detail` 文本，按钮恢复可点，用户可改日期重试
+  - 同步运行期间 `POST /trigger` 触发 400 `sync already running`（跨客户端防御）
+  - 同步内部异常：`tracker.clear()` 保证下次 status 看到 `is_running=false`；500 detail 暴露给 UI
+- **测试覆盖**：
+  - 后端：5（tracker 单测）+ 5（daily_sync 扩展：`_read_bar_for_date` 3 + `sync_historical_for_pool` 2）+ 7（api 端点 422/400/200/并发/in_progress/inactive）+ 1（fix 阶段追加并发 trigger 用例）= 191 总（172 既有 + 19 新增）
+  - 前端：8（DateRangePicker 含 730-day）+ 3（SyncProgressBanner）+ 2（RowProgressBar）+ 1（useTriggerSync）+ 4（DynamicPoolPage 进度集成）= 56 总（38 既有 + 18 新增）
+  - 全栈 CI：pytest 191 / vitest 56 / tsc --noEmit / ruff / build 全绿
+- **已知限制**（Minor，不阻塞）：
+  - `_read_bar_for_date` 每次调用 `pd.read_csv` 全量读 fixture，存在 N+1（47 codes × 200 days ≈ 9400 次读）；mock 路径无感，真实数据源接入后需替换实现或加缓存
+  - `_read_latest_bar` 现为 dead code（被 `_read_bar_for_date` 替代），可后续清理
+  - 进度展示依赖 10s 轮询；极短同步（< 10s）可能看不到横幅；用户切回 tab 时 `refetchOnWindowFocus` 兜底
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？

@@ -19,6 +19,7 @@
 | M11.1 | Dashboard 化整为零（折叠 `/signals` `/portfolio`） | ✅ 完成 |
 | M12 | ETF 历史数据同步可观测（per-ETF 状态 + /sync 页面） | ✅ 完成 |
 | M13 | 动态池中枢化（合并 `/history` `/sync` 到 `/dynamic-pool`；下钻子页） | ✅ 完成 |
+| M14 | 同步进度可视化（`DateRangePicker` + `SyncProgressTracker` + 行内/顶部进度条） | ✅ 完成 |
 
 ## 详细任务
 
@@ -148,6 +149,20 @@
 - [x] 侧边栏 `TOOL_ENTRIES` 4 → 2（仅回测、数据源）
 - [x] 测试基础设施：`ResizeObserver` polyfill 加到 `frontend/src/test/setup.ts`（Task 3 修复期间）
 - [x] 前端 38 passed / 后端 172 passed / tsc / ruff / build 全绿
+
+### M14 同步进度可视化（add-sync-progress-ui 2026-06-29）
+
+- [x] 后端 `SyncProgressTracker` 单例 + `ProgressInfo` Pydantic 模型 + 5 个 tracker 单测（Task 1；commit cec7376）
+- [x] 重构 `sync_historical_for_pool(codes, from_date, to_date)` + `_read_bar_for_date` + 双层循环 + tracker.set 每步（Task 2；commit d26dc90）
+- [x] `sync_today` 薄包装保留 + `main.py` startup hook 改 30 天窗口
+- [x] `SyncStatusResponse.in_progress` / `is_running`；`SyncTriggerResult.from_date/to_date` 扩展；`trigger_sync` Query 参数 + 4 条 400 校验（Task 3；commit 30fb4cc）
+- [x] `MAX_RANGE_DAYS = 730` 常量 + 并发 trigger 防御（`tracker.is_active()` 拦截）
+- [x] 前端 `<DateRangePicker>` Modal + 8 个 vitest（含 730 跨度校验）（Task 4；commit 0cd49cf + 73cee3f 扩展）
+- [x] `useTriggerSync({ from_date, to_date })` 签名变更 + 1 个 mutation 测试 + DynamicPoolPage 旧调用点更新（Task 5；commit 630bb65）
+- [x] `<SyncProgressBanner>` + `<RowProgressBar>` + `DynamicPoolPage` 集成（Task 6；commit 19712b7）
+- [x] Final review 修复 2 项 Minor（730 天客户端校验 + 并发 trigger 测试）（commit 73cee3f）
+- [x] Manual smoke 11/11 步骤通过（Modal 弹出 / 默认值 / 校验 / 范围触发 / Network / 进度展示 / 行内 / 完成后清除 / 按钮 disabled / 后端 400 / 跨 tab refetch）
+- [x] 前端 56 passed / 后端 191 passed / tsc / ruff / build 全绿
 
 ## 当前迭代
 
