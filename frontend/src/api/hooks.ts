@@ -266,11 +266,19 @@ export function useSyncStatus() {
   });
 }
 
+export interface SyncTriggerVariables {
+  from_date: string;
+  to_date: string;
+}
+
 export function useTriggerSync() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      api<SyncTriggerResult>("/api/sync/historical/trigger", { method: "POST" }),
+  return useMutation<SyncTriggerResult, Error, SyncTriggerVariables>({
+    mutationFn: ({ from_date, to_date }) =>
+      api<SyncTriggerResult>(
+        `/api/sync/historical/trigger?from_date=${from_date}&to_date=${to_date}`,
+        { method: "POST" },
+      ),
     onSuccess: (data) => {
       qc.setQueryData(["sync-historical-status"], data);
       qc.invalidateQueries({ queryKey: ["sync-historical-status"] });

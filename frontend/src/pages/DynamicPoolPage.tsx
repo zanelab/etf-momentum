@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
 import { SyncStatusBadge } from "@/components/SyncStatusBadge";
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function DynamicPoolPage() {
   const navigate = useNavigate();
   const { data, isLoading, isError } = useDynamicPool();
@@ -33,7 +43,12 @@ export default function DynamicPoolPage() {
           </button>
           <button
             type="button"
-            onClick={() => syncHistory.mutate()}
+            onClick={() =>
+              syncHistory.mutate({
+                from_date: daysAgoIso(7),
+                to_date: todayIso(),
+              })
+            }
             disabled={anyPending || isPoolEmpty}
             className="rounded border bg-background px-3 py-1.5 text-sm disabled:opacity-50"
           >
