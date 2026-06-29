@@ -277,3 +277,46 @@ def test_filter_etfs_deduplicates_static_and_dynamic() -> None:
     )
     # '510300' should appear at most once even though in both pools
     assert targets.count("510300.XSHG") <= 1
+
+
+def test_filter_etfs_dedupes_across_bare_and_canonical_codes() -> None:
+    """Given static has canonical-form and dynamic has bare 6-digit form of
+    the same ETF (akshare returns bare codes), filter_etfs must dedupe so the
+    fused pool contains that ETF exactly once.
+
+    Without code normalization, set(static + dynamic) would have two distinct
+    keys ('510300.XSHG' and '510300'), wasting filter cycles and producing
+    duplicate entries in score_list.
+    """
+    market = _market()
+    as_of = datetime(2026, 1, 15)
+    # Use a tiny pool that exercises the dedupe path (not the full filter logic)
+    targets = filter_etfs(
+        as_of,
+        static_pool=["510300.XSHG"],
+        dynamic_pool=["510300"],  # bare form, same ETF
+        themes={},
+        params=_params(stock_sum=5, enable_ma_filter=False, enable_volume_check=False),
+        market=market,
+    )
+    # '510300.XSHG' appears once; no '510300' (bare) leaks into output.
+    assert targets.count("510300.XSHG") == 1
+    assert "510300" not in targets
+
+
+def test_filter_etfs_excludes_defensive_when_bare_code() -> None:
+    """defensive_etf supplied as bare 6-digit code (e.g. '511880') must still
+    exclude the canonical-form ETF ('511880.XSHG') from the pool."""
+    market = _market()
+    as_of = datetime(2026, 1, 15)
+    targets = filter_etfs(
+        as_of,
+        static_pool=["510300.XSHG", "511880.XSHG"],
+        dynamic_pool=[],
+        themes={"宽基": ["沪深300"]},
+        params=_params(stock_sum=5, defensive_etf="511880"),  # bare code
+        market=market,
+        display_names={"510300.XSHG": "沪深300ETF", "511880.XSHG": "银华日利"},
+    )
+    assert "511880.XSHG" not in targets
+    assert "511880" not in targets

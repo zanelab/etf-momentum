@@ -50,3 +50,17 @@
   - CachedSource 对 `history` 使用"日历超集"启发式，存在少量过度刷写缓存的情况
   - 同步任务尚未接入定时器（手动调用 `sync_today()`）
 - 下一步：merge 阶段合入 main
+
+## akshare-code-normalization 变更（执行中，2026-06-29）
+
+- 日期：2026-06-29（real-data-source 归档后启动的新迭代）
+- 范围：ETF 代码格式归一化（akshare 6 位裸码 ↔ 静态池带后缀格式）
+- 关键产物：
+  - **`app/data_sources/codes.py`**：新增 `normalize_etf_code(code) -> str` 与 `same_etf(a, b) -> bool`；规范格式 `XXXXXX.XSHG/XSHE`；交易所推断规则为首字符 5/6→SH、1/0/3→SZ
+  - **`AkShareSource.all_etf_entries`**：返回前对每个 code 应用归一化（裸码 → canonical，非法 code 静默丢弃）
+  - **`filter_etfs` 合并**：用 `{normalize_etf_code(c) for c in static + dynamic}` 去重；defensive 比对用 `normalize_etf_code(params.defensive_etf)`
+  - **`load_display_names` 双查**：先按原 code 查 `static_pool`，未命中再按 canonical form 查；输出 key 保持输入形式
+  - **动态池 sync upsert key**：sync 前先把存量裸码 row 迁移到 canonical form（同一标的不会出现两个 row）；PATCH 路径也对 code 参数做归一化
+- CI 验证：`pytest` 159 passed（116 + 新增 43）/ `ruff check` 通过 / `tsc --noEmit` 通过 / `npm run build` 通过
+- 设计依据：对照 `main.py:282` 显式融合逻辑（`list(set(STATIC_ETF_POOL + g_dynamic_pool))`）与 `main.py:131-133` 原版动态池拉取（JoinQuant `get_all_securities` 自带后缀），确认 akshare 与 JoinQuant 格式差异才是真正的语义不一致源
+- 已知限制（仍是 M9 原始限制）：动态池手动同步、CachedSource 启发式过刷写

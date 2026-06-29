@@ -215,6 +215,41 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
 
     now = datetime.utcnow()
     with db_module.session_scope() as session:
+        from app.data_sources.codes import normalize_etf_code
+
+        # Migrate any legacy bare-code rows (older syncs may have stored
+        # `510300` instead of `510300.XSHG`). Production DBs may also have
+        # BOTH a bare row AND a canonical row for the same ETF (e.g. a prior
+        # partial sync inserted the canonical version before this migration
+        # step was added). Handle the collision: delete the bare row, and
+        # transfer its is_enabled flag to the canonical row so the user's
+        # intent isn't silently dropped.
+        legacy_rows = list(session.exec(select(DynamicPoolEntry)).all())
+        for r in legacy_rows:
+            if "." in r.code:
+                continue
+            try:
+                canonical = normalize_etf_code(r.code)
+            except ValueError:
+                # Unparseable legacy code; leave as-is so user can clean up manually.
+                continue
+            if canonical == r.code:
+                # Already canonical but no suffix — defensive; treat as-is.
+                continue
+            existing_canonical = session.get(DynamicPoolEntry, canonical)
+            if existing_canonical is not None:
+                # Collision: canonical row already exists. Delete the bare row
+                # and inherit its is_enabled flag (don't downgrade).
+                if r.is_enabled and not existing_canonical.is_enabled:
+                    existing_canonical.is_enabled = True
+                    session.add(existing_canonical)
+                session.delete(r)
+            else:
+                # No collision; rename bare → canonical.
+                r.code = canonical
+                session.add(r)
+        session.flush()
+
         for code, name in entries:
             existing = session.get(DynamicPoolEntry, code)
             if existing is None:
@@ -243,8 +278,16 @@ def sync_dynamic_pool() -> DynamicPoolSyncResult:
 
 @router.patch("/pool/dynamic/{code}", response_model=DynamicPoolEntryOut)
 def patch_dynamic_pool(code: str, body: DynamicPoolUpdate) -> DynamicPoolEntryOut:
+    from app.data_sources.codes import normalize_etf_code
+
+    # Normalize the path code so callers may use bare 6-digit form.
+    try:
+        canonical_code = normalize_etf_code(code)
+    except ValueError:
+        canonical_code = code  # fall through; lookup will return 404
+
     with db_module.session_scope() as session:
-        entry = session.get(DynamicPoolEntry, code)
+        entry = session.get(DynamicPoolEntry, canonical_code)
         if entry is None:
             raise HTTPException(
                 status_code=404, detail=f"DynamicPoolEntry not found: {code}"

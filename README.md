@@ -55,6 +55,7 @@ npm run dev
 
 - **行情数据**：支持 mock 与实时双源。默认 `ETF_DATA_SOURCE=fixture`，使用 `backend/data/fixtures/` 下 10 只代表性 ETF × 500 个交易日（GBM 模拟）。设为 `akshare` 时接入 akshare 实时接口（需 `pip install -r backend/requirements-realtime.txt`）。
 - **akshare 同步**：动态池（`dynamic_pool_entry`）仍需手动通过 `POST /api/configs/pool/dynamic/sync` 或前端「数据源」页面触发同步，**未做定时调度**。缓存命中统计仅在 `?stats=1` 时返回。
+- **代码格式归一**：系统内 ETF 代码统一为 `XXXXXX.XSHG/XSHE` 规范格式。akshare 返回的 6 位裸码由 `app.data_sources.codes.normalize_etf_code` 在 `AkShareSource.all_etf_entries`、动态池 upsert key、filter_etfs 池合并、load_display_names 查表四处统一归一；交易所推断规则为首字符 5/6→SH、1/0/3→SZ（详见 `app/data_sources/codes.py`）。
 - **持仓数据**：mock — `backend/app/services/portfolio_mock.py` 返回固定的 3 只 ETF（510300、518880、513100）。生产需要对接券商接口。
 - **认证**：未启用（仅本地使用）。
 - **回测窗口**：单次 ≤ 366 天（API 强约束）。
@@ -68,7 +69,7 @@ npm run dev
 | `/api/configs/pool` | GET / POST / PUT / DELETE | 静态池 CRUD |
 | `/api/configs/pool/dynamic` | GET | 列出动态池（akshare 全市场 ETF） |
 | `/api/configs/pool/dynamic/sync` | POST | 从当前数据源 UPSERT 动态池（保留 is_enabled） |
-| `/api/configs/pool/dynamic/{code}` | PATCH | 切换动态池条目启用状态 |
+| `/api/configs/pool/dynamic/{code}` | PATCH | 切换动态池条目启用状态（code 接受裸码或带后缀，自动归一化） |
 | `/api/configs/themes` | GET / PUT | 主题词典 |
 | `/api/configs/strategy` | GET / PUT | 策略参数 |
 | `/api/screening/today` | GET | 当日筛选目标 |

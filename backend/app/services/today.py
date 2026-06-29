@@ -90,13 +90,49 @@ def load_themes() -> dict[str, list[str]]:
 
 
 def load_display_names(codes: list[str]) -> dict[str, str]:
-    """Return a {code: display_name} map for the requested codes."""
+    """Return a {input_code: display_name} map for the requested codes.
+
+    Performs a dual-lookup against `static_pool.code`:
+    1. Exact match on the input code (canonical-form rows in static_pool).
+    2. Fallback to normalized canonical form, so bare 6-digit inputs (akshare)
+       resolve to canonical-form rows.
+
+    Output keys preserve the input form (so callers can map back); unmatched
+    inputs map to themselves.
+    """
     from app import db as db_module
+    from app.data_sources.codes import normalize_etf_code
     from app.models.static_pool import StaticPool
 
     if not codes:
         return {}
+
+    # Pre-compute canonical forms; skip normalization for malformed input
+    # (treat as-is so the row lookup still works against legacy bare codes).
+    canonical_of: dict[str, str] = {}
+    for c in codes:
+        try:
+            canonical_of[c] = normalize_etf_code(c)
+        except ValueError:
+            canonical_of[c] = c
+
     with db_module.session_scope() as session:
         rows = list(session.exec(select(StaticPool)).all())
-        result = {r.code: (r.display_name or r.code) for r in rows if r.code in codes}
+        # Read attributes inside the session to avoid DetachedInstanceError.
+        by_code: dict[str, str] = {r.code: (r.display_name or r.code) for r in rows}
+
+    result: dict[str, str] = {}
+    for c in codes:
+        # Exact match wins (avoids aliasing when both bare + canonical rows
+        # happen to coexist; see test_load_display_names_exact_match_takes_precedence).
+        if c in by_code:
+            result[c] = by_code[c]
+            continue
+        canonical = canonical_of[c]
+        if canonical != c and canonical in by_code:
+            result[c] = by_code[canonical]
+            continue
+        # No match: fall back to the input code itself so callers always
+        # receive a string they can use as a label.
+        result[c] = c
     return result

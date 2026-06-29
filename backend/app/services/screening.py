@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import numpy as np
 
 from app.data_sources.base import DataNotFoundError, MarketDataSource
+from app.data_sources.codes import normalize_etf_code
 from app.services.types import StrategyParams
 
 DEFAULT_DEFENSIVE_ETF = "511880.XSHG"
@@ -138,10 +139,12 @@ def filter_etfs(
     """
     display_names = display_names or {}
 
-    # Pool fusion
-    pool = list(set(static_pool + dynamic_pool))
-    if params.defensive_etf in pool:
-        pool.remove(params.defensive_etf)
+    # Pool fusion — normalize every input to canonical form so that bare
+    # 6-digit codes (akshare) deduplicate with suffixed codes (static pool).
+    pool: list[str] = list({normalize_etf_code(c) for c in static_pool + dynamic_pool})
+    defensive_canonical = normalize_etf_code(params.defensive_etf)
+    if defensive_canonical in pool:
+        pool.remove(defensive_canonical)
 
     # Step 1: MA filter
     if params.enable_ma_filter:
