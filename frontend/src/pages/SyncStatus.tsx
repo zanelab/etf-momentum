@@ -1,3 +1,4 @@
+import { SyncStatusBadge } from "@/components/SyncStatusBadge";
 import { useSyncStatus, useTriggerSync } from "@/api/hooks";
 
 export function SyncStatus() {
@@ -46,10 +47,7 @@ export function SyncStatus() {
                 <td className="px-2 py-1">{e.name ?? "—"}</td>
                 <td className="px-2 py-1">{e.last_synced_date ?? "—"}</td>
                 <td className="px-2 py-1">
-                  {e.status === "ok" && <span className="text-green-600">✓ 已同步</span>}
-                  {e.status === "failed" && <span className="text-red-600">⚠ 失败</span>}
-                  {e.status === "missing" && <span className="text-muted-foreground">— 缺失</span>}
-                  {e.status === "never" && <span className="text-muted-foreground">— 未同步</span>}
+                  <SyncStatusBadge status={e.status} />
                 </td>
               </tr>
             ))}
