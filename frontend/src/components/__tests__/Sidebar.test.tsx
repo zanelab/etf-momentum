@@ -14,14 +14,13 @@ function renderSidebar(props: { open: boolean; onClose: () => void }) {
 }
 
 describe("Sidebar", () => {
-  it("renders 8 settings entries when open", () => {
+  it("renders 6 settings entries when open", () => {
     renderSidebar({ open: true, onClose: () => {} });
     expect(screen.getByText("静态池")).toBeInTheDocument();
     expect(screen.getByText("主题词典")).toBeInTheDocument();
     expect(screen.getByText("策略参数")).toBeInTheDocument();
     expect(screen.getByText("动态池")).toBeInTheDocument();
     expect(screen.getByText("回测")).toBeInTheDocument();
-    expect(screen.getByText("历史数据")).toBeInTheDocument();
     expect(screen.getByText("数据源")).toBeInTheDocument();
   });
 

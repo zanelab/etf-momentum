@@ -10,8 +10,6 @@ const CONFIG_ENTRIES = [
 
 const TOOL_ENTRIES = [
   { to: "/backtest", label: "回测" },
-  { to: "/history", label: "历史数据" },
-  { to: "/sync", label: "数据同步" },
   { to: "/datasource", label: "数据源" },
 ] as const;
 

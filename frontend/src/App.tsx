@@ -8,9 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import DataSource from "@/pages/DataSource";
 import DynamicPoolPage from "@/pages/DynamicPoolPage";
 import EtfDetailPage from "@/pages/EtfDetailPage";
-import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
-import { SyncStatus } from "@/pages/SyncStatus";
 import StrategyConfig from "@/pages/StrategyConfig";
 import ThemeConfig from "@/pages/ThemeConfig";
 
@@ -33,8 +31,6 @@ export default function App() {
           <Route path="/dynamic-pool" element={<DynamicPoolPage />} />
           <Route path="/dynamic-pool/:code" element={<EtfDetailPage />} />
           <Route path="/backtest" element={<Backtest />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/sync" element={<SyncStatus />} />
           <Route path="/datasource" element={<DataSource />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
