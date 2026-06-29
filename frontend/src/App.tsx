@@ -7,6 +7,7 @@ import Backtest from "@/pages/Backtest";
 import Dashboard from "@/pages/Dashboard";
 import DataSource from "@/pages/DataSource";
 import DynamicPoolPage from "@/pages/DynamicPoolPage";
+import EtfDetailPage from "@/pages/EtfDetailPage";
 import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
 import { SyncStatus } from "@/pages/SyncStatus";
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/themes" element={<ThemeConfig />} />
           <Route path="/strategy" element={<StrategyConfig />} />
           <Route path="/dynamic-pool" element={<DynamicPoolPage />} />
+          <Route path="/dynamic-pool/:code" element={<EtfDetailPage />} />
           <Route path="/backtest" element={<Backtest />} />
           <Route path="/history" element={<History />} />
           <Route path="/sync" element={<SyncStatus />} />
