@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import FastAPI, Query
@@ -46,7 +47,11 @@ async def lifespan(_app: FastAPI):
     try:
         codes = _pool_union_codes()
         if codes:
-            sync_historical_for_pool(codes=codes)
+            sync_historical_for_pool(
+                codes=codes,
+                from_date=date.today() - timedelta(days=30),
+                to_date=date.today(),
+            )
     except Exception:  # noqa: BLE001 — startup must continue on sync failure
         log.exception("startup historical sync failed; continuing")
     yield
