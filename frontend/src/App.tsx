@@ -4,6 +4,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import Backtest from "@/pages/Backtest";
 import { Dashboard } from "@/pages/Dashboard";
 import DataSource from "@/pages/DataSource";
+import DynamicPoolPage from "@/pages/DynamicPoolPage";
 import History from "@/pages/History";
 import PoolConfig from "@/pages/PoolConfig";
 import Portfolio from "@/pages/Portfolio";
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/backtest" element={<Backtest />} />
           <Route path="/history" element={<History />} />
+          <Route path="/dynamic-pool" element={<DynamicPoolPage />} />
           <Route path="/datasource" element={<DataSource />} />
         </Routes>
       </main>
