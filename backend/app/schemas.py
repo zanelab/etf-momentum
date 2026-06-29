@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -60,3 +60,25 @@ class DynamicPoolSyncResult(BaseModel):
 
 class DynamicPoolUpdate(BaseModel):
     is_enabled: bool | None = None
+
+
+class SyncETFStatus(BaseModel):
+    """Per-ETF historical-sync state surfaced by the sync API."""
+
+    code: str
+    name: str | None
+    last_synced_date: str | None
+    status: Literal["ok", "failed", "missing", "never"]
+    error: str | None = None
+
+
+class SyncStatusResponse(BaseModel):
+    as_of: str | None
+    etfs: list[SyncETFStatus]
+
+
+class SyncTriggerResult(SyncStatusResponse):
+    """Result of a manual historical-sync trigger."""
+
+    synced_count: int
+    run_at: datetime
