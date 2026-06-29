@@ -64,3 +64,35 @@
 - CI 验证：`pytest` 159 passed（116 + 新增 43）/ `ruff check` 通过 / `tsc --noEmit` 通过 / `npm run build` 通过
 - 设计依据：对照 `main.py:282` 显式融合逻辑（`list(set(STATIC_ETF_POOL + g_dynamic_pool))`）与 `main.py:131-133` 原版动态池拉取（JoinQuant `get_all_securities` 自带后缀），确认 akshare 与 JoinQuant 格式差异才是真正的语义不一致源
 - 已知限制（仍是 M9 原始限制）：动态池手动同步、CachedSource 启发式过刷写
+
+## user-journey-reorg 变更归档
+
+- 日期：2026-06-29（spec + plan + 10 task 实施 + 1 fix wave，共 13 个 commit）
+- 分支：`feature/user-journey-reorg`
+- 设计/计划文档：
+  - 设计 spec：`docs/superpowers/specs/2026-06-29-user-journey-design.md`
+  - 实施 plan：`docs/superpowers/plans/2026-06-29-user-journey.md`
+- 范围：用户旅程与导航重整——以"非投资者日常 P&L + 周度再平衡"为目标用户重塑 IA
+- 关键产物：
+  - **导航结构**：顶部 4 项（仪表盘/持仓/今日调仓/设置）+ 侧边栏 7+1（静态池/主题词典/策略参数/动态池 divider 回测/历史数据/数据源）；`AppShell.tsx` + `Sidebar.tsx`；通配 `*` → `/`；`/screening` → `/signals`
+  - **首页 Dashboard**（`/`）：4 卡片——资产概览、今日需要做的、系统状态、当前持仓 Top 5；过期动态池 amber 横幅
+  - **/signals 改版**：周度操作清单（要卖出的/要买入的表格 + 每行复制 + 全局复制完整清单 + 防御模式 banner + ▶ 进阶 per-ETF 表 + ▶ 原始输出 JSON）
+  - **/dynamic-pool 独立页**：从原 `/datasource` 抽出
+  - **打印**：`@media print` 隐藏 nav/aside/details，`/signals` 可单页打印
+  - **后端扩展**：
+    - `PortfolioResponse` 加 `available_cash` / `net_value`；`signals_today()` 移除 100k fallback
+    - `ScreeningTodayResponse` 加 `details: list[ScreeningTargetDetail]`（momentum_score/annual_return/r2/volume_ratio?）；新增 `filter_etfs_detailed`，`filter_etfs` 保留为薄包装（`backtest.py` 不变）
+  - **测试基础设施**：vitest + @testing-library/react + jsdom（devDeps）
+- 实施过程：10 个 subagent-driven-development 任务 + 1 个 whole-branch review 后的 fix wave（实现 spec §5.3 进阶 + 3 个 one-liner 修复）
+- CI 验证：
+  - 前端：`npm test` 29 passed（vitest+RTL+jsdom）/ `tsc --noEmit` 通过 / `npm run build` 通过
+  - 后端：`uv run pytest` 165 passed（159 + 6 新增）/ `uv run ruff check` 通过
+  - 整合：manual smoke 待运行
+- 已知限制（从 M9/M10 继承）：动态池手动同步、akshare 缓存过刷写
+- 新增/已知 minor（已记录，留待后续 M11.1）：
+  - `100_000.0` 资本硬编码在 `backend/app/api/screening.py` 三处
+  - `setupFetchMock` 重复实现于 5 个测试文件（`/api/screening/today` mock 在 Dashboard/Signals 路径上是 dead）
+  - 11 个文件缺尾部换行（含本次新增的多个）
+  - `@vitest/ui` 已装但缺 `test:ui` script
+  - 前端 `.toFixed()` 缺 `Number.isFinite` 防御（后端测试已覆盖）
+- 下一步：merge 阶段合入 main

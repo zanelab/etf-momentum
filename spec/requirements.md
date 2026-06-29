@@ -54,6 +54,25 @@
 - **交易所推断**：6 位裸码首字符规则 — 5/6 → XSHG、1/0/3 → XSHE
 - **向后兼容**：所有归一化点同时接受裸码与带后缀输入；存量裸码 row 在下次 `POST /api/configs/pool/dynamic/sync` 时自动迁移到 canonical form
 
+## 用户旅程重整（user-journey-reorg 2026-06-29）
+
+- **目标用户重定位**：非投资者日常用户——每日上来查看盈亏，每周依据调仓信号做一次再平衡。整套 IA 与文案围绕此重组
+- **导航结构**：
+  - **顶部 4 项**：`仪表盘` (/)、`持仓` (/portfolio)、`今日调仓` (/signals)、`设置`（按钮 → 唤起侧边栏）
+  - **侧边栏 7+1**（divider 分隔）：`静态池` (/pool)、`主题词典` (/themes)、`策略参数` (/strategy)、`动态池` (/dynamic-pool)、divider、`回测` (/backtest)、`历史数据` (/history)、`数据源` (/datasource)
+  - **通配路由**：未知 URL 跳转 `/`（避免空白页）
+  - **兼容路由**：`/screening` 301-equivalent 重定向到 `/signals`
+- **首页 Dashboard（4 卡片）**：资产概览（净值/市值/成本/盈亏/可用）、今日需要做的（动作数 + CTA）、系统状态（健康/缓存/动态池/最后同步）、当前持仓 Top 5
+- **/signals 改版**：周度操作清单——`要卖出的` / `要买入的` 表格（代码/名称/数量/金额 + 每行 `📋 复制`）+ 全局 `📋 复制完整调仓清单` + `▶ 进阶：为什么这样选`（per-ETF 动量分/年化/R²/量比）+ `▶ 原始筛选输出` JSON 折叠 + 防御模式 banner
+- **/dynamic-pool 独立成页**：从原 `/datasource` 抽出；侧边栏独立入口
+- **过期感知**：动态池 `last_synced_at` > 24h → Dashboard 顶部黄色 `⚠ 动态池已过期` 横幅 + 立即同步链接
+- **打印友好**：`@media print` 隐藏 `header nav` / `aside` / `details`，将 `/signals` 渲染为单页操作清单
+- **后端扩展**：
+  - `PortfolioResponse` 新增 `available_cash`（`100_000 − total_cost`）与 `net_value`（`market_value + available_cash`）；`signals_today()` 不再硬编码 100k fallback，`total_value` 改由 `available_cash + total_market_value` 推导
+  - `ScreeningTodayResponse` 新增 `details: list[ScreeningTargetDetail]` 字段（每标的：momentum_score / annual_return / r2 / volume_ratio?），前端 `▶ 进阶` 折叠表使用；`targets: list[str]` 保留做向后兼容
+  - 新增 `filter_etfs_detailed(...)` 服务函数，保留 `filter_etfs` 旧签名（`backtest.py` 不变）
+- **测试覆盖**：前端 vitest + RTL + jsdom（29 用例覆盖 AppShell/Sidebar/Dashboard/Signals/DynamicPoolPage/screening-redirect/app-shell-wiring/stale-sync）；后端 pytest 165 用例（含 M11 新增 2）
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？
