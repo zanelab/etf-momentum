@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -248,5 +248,96 @@ describe("DynamicPoolPage progress UI", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
+  });
+});
+
+describe("DynamicPoolPage — useDynamicPool polling behavior", () => {
+  // Install a counter-style fetch spy: count GETs to /api/configs/pool/dynamic.
+  // Returning the same shape used elsewhere so the page renders normally.
+  function installCountingFetchMock(opts: { poolBody?: unknown } = {}) {
+    const poolBody = opts.poolBody ?? [
+      { code: "510300.XSHG", name: "沪深300ETF", is_enabled: true, last_synced_at: "2026-01-15T10:00:00Z" },
+    ];
+    let dynamicPoolGetCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url.startsWith("/api/configs/pool/dynamic/") && method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            code: decodeURIComponent(url.split("/").pop()!),
+            name: "沪深300ETF",
+            is_enabled: true,
+            last_synced_at: "2026-01-15T10:00:00Z",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.startsWith("/api/configs/pool/dynamic") && method === "GET") {
+        dynamicPoolGetCount += 1;
+        return new Response(JSON.stringify(poolBody), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.startsWith("/api/sync/historical/status")) {
+        return new Response(
+          JSON.stringify({ as_of: "2026-01-15", etfs: [], in_progress: null, is_running: false }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("{}", { status: 404 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    return {
+      getCount: () => dynamicPoolGetCount,
+      fetchMock,
+    };
+  }
+
+  describe("with fake timers", () => {
+    beforeEach(() => {
+      // Only fake setInterval/clearInterval so that React Query's
+      // refetchInterval timer is virtual, but waitFor's setTimeout polling
+      // remains on real time and can resolve.
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not refetch /api/configs/pool/dynamic after 30s of fake time", async () => {
+      const { getCount } = installCountingFetchMock();
+
+      renderPage();
+
+      // Initial mount should trigger exactly one GET.
+      await waitFor(() => expect(getCount()).toBe(1));
+
+      // Advance well past the would-be 5s polling interval.
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // No additional GETs should have fired.
+      expect(getCount()).toBe(1);
+    }, 10_000);
+  });
+
+  it("refetches /api/configs/pool/dynamic after useToggleDynamicEntry mutation succeeds", async () => {
+    const { getCount } = installCountingFetchMock();
+
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(getCount()).toBe(1));
+
+    // Toggle the checkbox — this fires PATCH then invalidates ["dynamic-pool"],
+    // which should trigger another GET.
+    const row = await waitFor(() => screen.getByTestId("pool-row-510300.XSHG"));
+    const checkbox = row.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(checkbox).toBeTruthy();
+    await user.click(checkbox);
+
+    await waitFor(() => expect(getCount()).toBeGreaterThan(1));
   });
 });

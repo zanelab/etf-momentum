@@ -373,7 +373,6 @@ export function useDynamicPool() {
   return useQuery({
     queryKey: ["dynamic-pool"],
     queryFn: () => api<DynamicPoolEntry[]>("/api/configs/pool/dynamic"),
-    refetchInterval: 5_000,
   });
 }
 
