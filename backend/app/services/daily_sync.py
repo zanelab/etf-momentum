@@ -19,34 +19,13 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 SYNC_DIR = Path(__file__).resolve().parents[2] / "data" / "daily_sync"
 
 
-def _read_latest_bar(code: str) -> dict | None:
-    """Return {date, close, volume, money} for the latest bar of `code`, or None if missing.
-
-    Mock source: read FIXTURES_DIR/{code}.csv. Production source: delegate to the
-    configured MarketDataSource (out of scope for this task — the function is the
-    injection point for the real implementation).
-    """
-    csv_path = FIXTURES_DIR / f"{code}.csv"
-    if not csv_path.exists():
-        return None
-    df = pd.read_csv(csv_path, parse_dates=["date"])
-    if df.empty:
-        return None
-    last = df.iloc[-1]
-    ts = pd.Timestamp(last["date"])
-    return {
-        "date": ts.strftime("%Y-%m-%d"),
-        "close": float(last["close"]),
-        "volume": float(last["volume"]),
-        "money": float(last["money"]),
-    }
-
-
 def _read_bar_for_date(code: str, target_date: date) -> dict | None:
     """Return {date, close, volume, money} for the bar on `target_date`, or None.
 
-    Reads the same fixture CSV as `_read_latest_bar` but filters to the
-    specific date. Returns None if the code has no data on that day.
+    Reads FIXTURES_DIR/{code}.csv and filters to the specific date. Returns
+    None if the code has no data on that day. Production source: delegate to
+    the configured MarketDataSource (out of scope for this task — this
+    function is the injection point for the real implementation).
     """
     csv_path = FIXTURES_DIR / f"{code}.csv"
     if not csv_path.exists():
