@@ -156,6 +156,85 @@ describe("DynamicPoolPage progress UI", () => {
     await waitFor(() => expect(screen.getByTestId("sync-progress-banner")).toBeInTheDocument());
   });
 
+  it("shows cancel button when in_progress is non-empty and not cancelled", async () => {
+    setupFetchMock({
+      "/api/configs/pool/dynamic": [
+        { code: "510300.XSHG", name: "沪深300ETF", is_enabled: true, last_synced_at: "2026-01-15T10:00:00Z" },
+      ],
+      "/api/sync/historical/status": {
+        as_of: "2026-01-15",
+        etfs: [],
+        in_progress: [
+          {
+            code: "510300", from_date: "2024-04-19", to_date: "2024-04-21",
+            current_date: "2024-04-20", total_days: 3, completed_days: 2,
+            overall_index: 2, overall_total: 3, started_at: "2026-06-29T10:00:00Z",
+          },
+        ],
+        is_running: true,
+        is_cancelled: false,
+      },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("cancel-sync-button")).toBeInTheDocument());
+  });
+
+  it("hides cancel button when is_cancelled=true", async () => {
+    setupFetchMock({
+      "/api/configs/pool/dynamic": [
+        { code: "510300.XSHG", name: "沪深300ETF", is_enabled: true, last_synced_at: "2026-01-15T10:00:00Z" },
+      ],
+      "/api/sync/historical/status": {
+        as_of: "2026-01-15",
+        etfs: [],
+        in_progress: [
+          {
+            code: "510300", from_date: "2024-04-19", to_date: "2024-04-21",
+            current_date: "2024-04-20", total_days: 3, completed_days: 2,
+            overall_index: 2, overall_total: 3, started_at: "2026-06-29T10:00:00Z",
+          },
+        ],
+        is_running: true,
+        is_cancelled: true,
+      },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("sync-progress-banner")).toBeInTheDocument());
+    expect(screen.queryByTestId("cancel-sync-button")).not.toBeInTheDocument();
+  });
+
+  it("clicking cancel button triggers useCancelSync mutation", async () => {
+    const user = userEvent.setup();
+    setupFetchMock({
+      "/api/configs/pool/dynamic": [
+        { code: "510300.XSHG", name: "沪深300ETF", is_enabled: true, last_synced_at: "2026-01-15T10:00:00Z" },
+      ],
+      "/api/sync/historical/status": {
+        as_of: "2026-01-15",
+        etfs: [],
+        in_progress: [
+          {
+            code: "510300", from_date: "2024-04-19", to_date: "2024-04-21",
+            current_date: "2024-04-20", total_days: 3, completed_days: 2,
+            overall_index: 2, overall_total: 3, started_at: "2026-06-29T10:00:00Z",
+          },
+        ],
+        is_running: true,
+        is_cancelled: false,
+      },
+      "/api/sync/historical/cancel": { cancelled: true },
+    });
+    renderPage();
+    const cancelBtn = await waitFor(() => screen.getByTestId("cancel-sync-button"));
+    await user.click(cancelBtn);
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/sync/historical/cancel",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+  });
+
   it("shows row progress bar when in_progress contains the row's code", async () => {
     setupFetchMock({
       "/api/configs/pool/dynamic": [

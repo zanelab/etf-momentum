@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
+import { useCancelSync, useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { RowProgressBar } from "@/components/RowProgressBar";
 import { SyncProgressBanner } from "@/components/SyncProgressBanner";
@@ -12,6 +12,7 @@ export default function DynamicPoolPage() {
   const { data, isLoading, isError } = useDynamicPool();
   const syncPool = useSyncDynamicPool();
   const syncHistory = useTriggerSync();
+  const cancelSync = useCancelSync();
   const toggle = useToggleDynamicEntry();
   const syncStatus = useSyncStatus();
 
@@ -20,6 +21,7 @@ export default function DynamicPoolPage() {
 
   const isPoolEmpty = (data?.length ?? 0) === 0;
   const isRunning = syncStatus.data?.is_running ?? false;
+  const isCancelled = syncStatus.data?.is_cancelled ?? false;
   const inProgress = syncStatus.data?.in_progress ?? [];
   const anyPending = syncPool.isPending || syncHistory.isPending || isRunning;
 
@@ -56,7 +58,21 @@ export default function DynamicPoolPage() {
         </div>
       </header>
 
-      {inProgress.length > 0 && <SyncProgressBanner progress={inProgress} />}
+      {inProgress.length > 0 && <SyncProgressBanner progress={inProgress} isCancelled={isCancelled} />}
+
+      {inProgress.length > 0 && !isCancelled && (
+        <div>
+          <button
+            type="button"
+            onClick={() => cancelSync.mutate()}
+            disabled={cancelSync.isPending}
+            className="rounded border border-red-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 disabled:opacity-50"
+            data-testid="cancel-sync-button"
+          >
+            取消
+          </button>
+        </div>
+      )}
 
       {isPoolEmpty && !anyPending && (
         <p className="text-sm text-muted-foreground">暂无动态池条目，请点击「同步 ETF」拉取全市场 ETF 列表</p>

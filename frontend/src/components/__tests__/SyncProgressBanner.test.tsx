@@ -42,4 +42,16 @@ describe("SyncProgressBanner", () => {
     // current should be the most advanced code
     expect(screen.getByText(/510500/)).toBeInTheDocument();
   });
+
+  it("renders red cancelled style when isCancelled=true", () => {
+    const { container } = render(<SyncProgressBanner progress={sampleProgress} isCancelled={true} />);
+    expect(container.firstChild).toHaveClass("bg-red-50");
+    expect(screen.getByText(/已取消/)).toBeInTheDocument();
+  });
+
+  it("renders blue progress style when isCancelled=false", () => {
+    const { container } = render(<SyncProgressBanner progress={sampleProgress} isCancelled={false} />);
+    expect(container.firstChild).toHaveClass("bg-blue-50");
+    expect(screen.getByText(/同步进行中/)).toBeInTheDocument();
+  });
 });
