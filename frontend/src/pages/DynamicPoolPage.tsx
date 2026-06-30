@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useCancelSync, useDynamicPool, useSyncDynamicPool, useSyncStatus, useToggleDynamicEntry, useTriggerSync } from "@/api/hooks";
+import {
+  useCancelSync,
+  useDynamicPoolWithStatus,
+  useSyncDynamicPool,
+  useToggleDynamicEntry,
+  useTriggerSync,
+} from "@/api/hooks";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { RowProgressBar } from "@/components/RowProgressBar";
 import { SyncProgressBanner } from "@/components/SyncProgressBanner";
@@ -9,23 +15,54 @@ import { SyncStatusBadge } from "@/components/SyncStatusBadge";
 
 export default function DynamicPoolPage() {
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useDynamicPool();
+  const { data: status, isLoading, isError } = useDynamicPoolWithStatus();
   const syncPool = useSyncDynamicPool();
   const syncHistory = useTriggerSync();
   const cancelSync = useCancelSync();
   const toggle = useToggleDynamicEntry();
-  const syncStatus = useSyncStatus();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const isPoolEmpty = (data?.length ?? 0) === 0;
-  const isRunning = syncStatus.data?.is_running ?? false;
-  const isCancelled = syncStatus.data?.is_cancelled ?? false;
-  const inProgress = syncStatus.data?.in_progress ?? [];
-  const anyPending = syncPool.isPending || syncHistory.isPending || isRunning;
+  // Derived state from the single status response
+  const etfs = status?.etfs ?? [];
+  const inProgress = status?.in_progress ?? [];
+  const poolRunning = syncPool.isPending;
+  const historyRunning = status?.is_running ?? false;
+  const historyJustStarted = syncHistory.isPending;
+  const cancelInFlight = cancelSync.isPending;
+  const isPoolEmpty = etfs.length === 0;
 
-  const statusByCode = new Map((syncStatus.data?.etfs ?? []).map((e) => [e.code, e.status]));
+  // "同步 ETF" button: mutex — disabled whenever any sync is active
+  // (history running OR pool syncing). This is the hard gate.
+  const syncEtfDisabled = poolRunning || historyRunning;
+
+  // "同步 ETF 历史数据" button state machine.
+  //
+  // State | historyRunning | historyJustStarted | cancelInFlight
+  // -------+----------------+--------------------+---------------
+  //   idle |     false      |       false        |   * (implied false)
+  // starting|     false      |       true         |   false
+  // running|     true       |       *            |   false
+  //   cancelling| true     |       *            |   true
+  //
+  // label / onClick / disabled are derived from the row above.
+  const historyBtnLabel =
+    historyRunning
+      ? (cancelInFlight ? "取消中…" : "取消")
+      : historyJustStarted
+        ? "同步中…"
+        : "同步 ETF 历史数据";
+
+  const historyBtnDisabled =
+    historyRunning
+      ? cancelInFlight
+      : historyJustStarted
+        ? true
+        : poolRunning || isPoolEmpty;
+
+  // Per-row maps (used by the table)
+  const statusByCode = new Map(etfs.map((e) => [e.code, e.status]));
   const progressByCode = new Map(inProgress.map((p) => [p.code, p]));
 
   if (isLoading) return <p>加载中…</p>;
@@ -39,46 +76,36 @@ export default function DynamicPoolPage() {
           <button
             type="button"
             onClick={() => syncPool.mutate()}
-            disabled={anyPending}
+            disabled={syncEtfDisabled}
             className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
-            {syncPool.isPending ? "同步中…" : "同步 ETF"}
+            {poolRunning ? "同步中…" : "同步 ETF"}
           </button>
           <button
             type="button"
             onClick={() => {
-              setSyncError(null);
-              setPickerOpen(true);
+              if (historyRunning) {
+                cancelSync.mutate();
+              } else {
+                setSyncError(null);
+                setPickerOpen(true);
+              }
             }}
-            disabled={anyPending || isPoolEmpty}
+            disabled={historyBtnDisabled}
             className="rounded border bg-background px-3 py-1.5 text-sm disabled:opacity-50"
           >
-            {syncHistory.isPending ? "同步中…" : "同步 ETF 历史数据"}
+            {historyBtnLabel}
           </button>
         </div>
       </header>
 
-      {inProgress.length > 0 && <SyncProgressBanner progress={inProgress} isCancelled={isCancelled} />}
+      {inProgress.length > 0 && <SyncProgressBanner progress={inProgress} />}
 
-      {inProgress.length > 0 && !isCancelled && (
-        <div>
-          <button
-            type="button"
-            onClick={() => cancelSync.mutate()}
-            disabled={cancelSync.isPending}
-            className="rounded border border-red-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 disabled:opacity-50"
-            data-testid="cancel-sync-button"
-          >
-            取消
-          </button>
-        </div>
-      )}
-
-      {isPoolEmpty && !anyPending && (
+      {isPoolEmpty && !syncEtfDisabled && !historyRunning && !historyJustStarted && (
         <p className="text-sm text-muted-foreground">暂无动态池条目，请点击「同步 ETF」拉取全市场 ETF 列表</p>
       )}
 
-      {data && data.length > 0 && (
+      {etfs.length > 0 && (
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-muted-foreground">
@@ -90,7 +117,7 @@ export default function DynamicPoolPage() {
             </tr>
           </thead>
           <tbody>
-            {data.map((e) => (
+            {etfs.map((e) => (
               <tr
                 key={e.code}
                 onClick={() => navigate("/dynamic-pool/" + encodeURIComponent(e.code))}
@@ -117,7 +144,14 @@ export default function DynamicPoolPage() {
                   {progressByCode.get(e.code) ? (
                     <RowProgressBar info={progressByCode.get(e.code)!} />
                   ) : (
-                    <SyncStatusBadge status={statusByCode.get(e.code) ?? "never"} />
+                    (() => {
+                      // progress bar is shown for in_progress codes; for the rest,
+                      // map the status to the badge's accepted set.
+                      const s = statusByCode.get(e.code) ?? "never";
+                      const badgeStatus: "ok" | "failed" | "missing" | "never" =
+                        s === "in_progress" ? "never" : s;
+                      return <SyncStatusBadge status={badgeStatus} />;
+                    })()
                   )}
                 </td>
               </tr>
