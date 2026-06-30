@@ -21,6 +21,7 @@
 | M13 | 动态池中枢化（合并 `/history` `/sync` 到 `/dynamic-pool`；下钻子页） | ✅ 完成 |
 | M14 | 同步进度可视化（`DateRangePicker` + `SyncProgressTracker` + 行内/顶部进度条） | ✅ 完成 |
 | M15 | 动态池轮询收敛（删除 `useDynamicPool` 5s 轮询，依赖 mutation-driven refresh） | ✅ 完成 |
+| M16 | 同步取消功能（POST `/api/sync/historical/cancel` + BackgroundTasks + 取消按钮） | ✅ 完成 |
 
 ## 详细任务
 
@@ -171,6 +172,19 @@
 - [x] `DynamicPoolPage.test.tsx` 新增 2 个测试：30s 无 refetch + mutation 后 refetch（fake timer 限定 `setInterval`/`clearInterval` 避免 `waitFor` 死锁）
 - [x] 用户决定 skip 手动 smoke + final review（trivial 1-line 变更；2 个单测已覆盖核心行为）
 - [x] 前端 58 passed / tsc / build 全绿
+
+### M16 同步取消功能（sync-cancel 2026-06-30）
+
+- [x] 后端 `SyncProgressTracker` 加 cancel flag + 4 个 cancel 方法（`cancel`/`is_cancel_requested`/`reset_cancel`/`clear_progress`）+ 4 单测（Task 1；commit 1ab6198）
+- [x] `sync_historical_for_pool` 在每步后检查 flag + `for/else/break` 双层循环取消 + 2 单测（Task 2；commit 4e3e244）
+- [x] `trigger_sync` 改用 FastAPI `BackgroundTasks`（立即返回）+ `_run_sync_and_clear` 包装 closure + 新增 `POST /cancel` 端点 + `SyncStatusResponse.is_cancelled` 字段 + 5 个 api 单测（Task 3 主体 + fix1 + fix2；commits 350003b / a24d4c2 / 4ca15df）
+- [x] Bug fix（fix1 a24d4c2）：BackgroundTasks 改造后丢了 `tracker.clear()` 调用，通过 `_run_sync_and_clear` 包装 closure 恢复；更新 3 个既有 trigger 测试以匹配新异步语义
+- [x] Bug fix（fix2 4ca15df）：cancel-path lifecycle — 新增 `tracker.clear_progress()` 只清 `_by_code`（保留 cancel flag），使 `/status` 在 cancel 后返回 `is_running=false, is_cancelled=true`（符合 spec "取消后 status 轮询看到 is_running=false"）
+- [x] 前端 `useCancelSync` mutation hook + `SyncStatusResponse.is_cancelled` 类型 + 1 单测（Task 4；commit 4f90656）
+- [x] `SyncProgressBanner` 接 `isCancelled` prop + 红色「已取消」样式 + `DynamicPoolPage` 取消按钮 + 5 单测（Task 5；commit 066faa4）
+- [x] 全量验证 202 backend / 64 frontend / ruff / tsc / build 全绿（Task 6 验证）
+- [x] 用户决定 skip 手动 smoke + final review（5 个 task review 全部 clean + 9 + 11 新单测已覆盖关键路径）
+- [x] 后端 202 passed / 前端 64 passed / ruff / tsc / build 全绿
 
 ## 当前迭代
 

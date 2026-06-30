@@ -219,3 +219,42 @@
 - CI 验证：前端 `npm test` 58 passed（56 既有 + 2 新增）/ `tsc --noEmit` 通过 / `npm run build` 成功
 - 已知限制：无
 - 下一步：merge 阶段合入 main
+
+## sync-cancel 变更归档
+
+- 日期：2026-06-30（plan 30/30，7 个 commit — `1ab6198` / `4e3e244` / `350003b` / `a24d4c2` / `4ca15df` / `4f90656` / `066faa4`）
+- 分支：`feature/sync-cancel`（基于 main `fe2fe60` 启动；post-M15 merge）
+- 流程归属：openspec（`openspec/changes/sync-cancel/{proposal.md, spec.md, plan.md}` + design 写在 proposal 内）
+- 范围：M14 的「同步 ETF 历史数据」目前是同步阻塞的（`trigger_sync` 调 `sync_historical_for_pool` 等完成才返回），HTTP 请求未释放导致用户根本无法取消。本变更让用户可以中途取消
+- 核心约束：必须先把 sync 移到后台（FastAPI `BackgroundTasks`），trigger 立即返回，再单独 POST `/cancel`
+- 设计决策：
+  - 执行模型：FastAPI `BackgroundTasks`（trigger 立即返回 + 后台跑 + cancel 单独 POST）
+  - 取消时机：下一 (code, date) 边界停止（不强中断正在执行的 `_read_bar_for_date`——I/O 中断语义复杂）
+  - 取消后 UI：Banner 变红 + 部分进度；新增 `is_cancelled` 字段标识
+- 关键产物：
+  - **后端**：
+    - `SyncProgressTracker`（`backend/app/services/sync_progress.py`）：新增 `_cancel_requested: bool` 字段 + `cancel()` / `is_cancel_requested()` / `reset_cancel()` 方法 + 新增 `clear_progress()` 方法（只清 `_by_code` 保留 cancel flag）。`clear()` 既有方法同步 reset cancel flag（保持向后兼容）
+    - `sync_historical_for_pool`（`backend/app/services/daily_sync.py`）：循环开头 `tracker.reset_cancel()`（防 stale flag）；每步后 `tracker.set(...)` 之后检查 `tracker.is_cancel_requested()`，true 时 `break` 内层 + Python `for/else/break` 模式 break 外层；summary JSON 仍写（部分 rows）
+    - `trigger_sync`（`backend/app/api/sync.py`）：改用 FastAPI `BackgroundTasks` + `_run_sync_and_clear` 包装 closure（finally 中调 `tracker.clear_progress()` 保证正常路径清进度；cancel 路径保留 flag 让前端看到）
+    - `POST /api/sync/historical/cancel`（同文件）：`tracker.is_active()` 检查后调 `tracker.cancel()`，返回 `CancelResult(cancelled=True)`，无 sync 跑时 400
+    - `SyncStatusResponse`（`backend/app/schemas.py`）：新增 `is_cancelled: bool = False` 字段（向后兼容）
+    - `CancelResult`（同文件）：新 Pydantic schema `{cancelled: bool}`
+  - **前端**：
+    - `useCancelSync`（`frontend/src/api/hooks.ts`）：TanStack Query mutation，POST 到 `/api/sync/historical/cancel`，onSuccess invalidate `["sync-historical-status"]`
+    - `SyncStatusResponse` TS 类型：新增 `is_cancelled: boolean`
+    - `useTriggerSync.onSuccess`：移除 `setQueryData`（避免与 status poll 竞速；status poll 已覆盖）
+    - `<SyncProgressBanner>`（`frontend/src/components/SyncProgressBanner.tsx`）：新增 `isCancelled?: boolean` prop，true 时切换 `bg-red-50`/`bg-red-500`/`bg-red-100` + 头部「已取消」+ 当前 label 改「已同步」
+    - `<DynamicPoolPage>`（`frontend/src/pages/DynamicPoolPage.tsx`）：新增「取消」按钮（仅 `inProgress.length > 0 && !isCancelled` 时显示，pending 时 disabled）
+- 实施过程：5 个 subagent-driven-development 任务（Tasks 1-5，全部 review clean）+ Task 6 CI 验证（用户决定 skip smoke + final review）
+- Bug 修复（实施中发现）：
+  - **fix1** `a24d4c2`：Task 3 把 `trigger_sync` 改为异步后丢了 `tracker.clear()` 调用（同步 → 异步，原 API 层 clear 没了）。通过 `_run_sync_and_clear` 包装 closure 恢复 cleanup；3 个既有 trigger 测试（断言旧同步语义）需更新匹配新异步行为
+  - **fix2** `4ca15df`：cancel-path lifecycle — wrapper 原用 `if not is_cancel_requested: clear()`，结果 cancel 路径 `_by_code` 留着，`is_active()` 一直 True，`/status` 返回 `is_running=True` 不符合 spec "下次 status 轮询看到 is_running=false"。新增 `tracker.clear_progress()`（只清 `_by_code` 不动 cancel flag），wrapper 改为无条件 `clear_progress()`。Cancel 路径现在返回 `is_running=false, is_cancelled=true`
+- CI 验证：
+  - 前端：`npx vitest run` 64 passed（15 files，58 既有 + 1 useCancelSync + 2 banner + 3 page）/ `tsc --noEmit` 通过 / `npm run build` 通过
+  - 后端：`uv run pytest -q` 202 passed（191 既有 + 4 tracker + 2 daily_sync + 5 sync_cancel api = +11 新增；3 既有测试更新）/ `uv run ruff check` clean
+- 已知限制（Minor，不阻塞）：
+  - BackgroundTasks 跨进程重启丢失（mock 路径无影响；前端 status poll 看到 `is_running=false` 后 UI 复位）
+  - `useTriggerSync` 移除 setQueryData 导致「空状态」瞬间（trigger 响应带 `is_running=true, in_progress=[]`；前端 10s 内 status poll 拿到真实进度）
+  - cancel race：cancel 到达时 sync 恰好完成（cancel 端检查 `tracker.is_active()`，如果 sync 已完成 tracker 已 clear，会返回 400——这是预期行为）
+  - `_read_bar_for_date` 在 cancel flag 检查前阻塞 I/O（mock 路径 < 1ms/步；真实数据源可能 50-200ms 延迟，本期接受这个粒度）
+- 下一步：merge 阶段合入 main

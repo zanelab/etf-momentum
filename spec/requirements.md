@@ -166,6 +166,24 @@
   - 跨 tab：依赖 TanStack Query 默认 `refetchOnWindowFocus: true`，切回 tab 时自动 refetch
 - **测试覆盖**：前端 vitest 58 passed（56 既有 + 2 新增：30s 无 refetch + mutation 后 refetch）；tsc / build 干净
 
+## 同步取消功能（sync-cancel 2026-06-30）
+
+- **目标**：M14 的「同步 ETF 历史数据」目前是同步阻塞的，点了之后用户没法中止。本变更让用户可以中途取消（UI 加按钮 + 后端在下一个 (code, date) 边界停止）
+- **核心约束**：旧的 `trigger_sync` 同步阻塞导致 HTTP 请求未释放，cancel 请求根本无法发出。**必须先把 sync 移到后台**（FastAPI `BackgroundTasks`），trigger 立即返回，再单独 POST `/cancel`
+- **设计决策**：
+  - 执行模型：FastAPI `BackgroundTasks`（trigger 立即返回 + 后台跑 + cancel 单独 POST）
+  - 取消时机：下一 (code, date) 边界停止（不强中断正在执行的 `_read_bar_for_date`——I/O 中断语义复杂）
+  - 取消后 UI：Banner 变红 + 部分进度；新增 `is_cancelled` 字段标识
+- **改动面**：
+  - 后端：`SyncProgressTracker` 加 cancel flag + 3 方法（`cancel`/`is_cancel_requested`/`reset_cancel`/`clear_progress`）；`sync_historical_for_pool` 在每步后检查 flag 并 `for/else/break` 双层循环；`trigger_sync` 改用 `BackgroundTasks` + `_run_sync_and_clear` 包装 closure（finally 中调 `clear_progress()` 保留 cancel flag）；新增 `POST /cancel` 端点 + `CancelResult` schema + `SyncStatusResponse.is_cancelled` 字段
+  - 前端：`useCancelSync` mutation；`SyncStatusResponse.is_cancelled` 类型；`useTriggerSync.onSuccess` 移除 `setQueryData`（让 status poll 独占显示）；`SyncProgressBanner` 接 `isCancelled` prop 渲染红色；`DynamicPoolPage` 加「取消」按钮
+- **回归清理**：Task 3 改造 `trigger_sync` 时丢了 `tracker.clear()` 调用（同步 → 异步），通过 `_run_sync_and_clear` 包装 closure 恢复；同时更新 3 个既有 trigger 测试以匹配新异步语义
+- **Cancel-path lifecycle**：`tracker.clear_progress()` 只清 `_by_code`（保留 `_cancel_requested=True`），所以 cancel 后 `/status` 返回 `is_running=false, is_cancelled=true`（前端 banner 变红显示「已取消」）
+- **测试覆盖**：
+  - 后端 202 passed（191 既有 + 4 sync_progress + 2 daily_sync + 5 sync_cancel api = +11 新增；3 既有测试更新）
+  - 前端 64 passed（58 既有 + 1 useCancelSync + 2 banner isCancelled + 3 page cancel = +6 新增）
+  - tsc / build / ruff 全绿
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？
