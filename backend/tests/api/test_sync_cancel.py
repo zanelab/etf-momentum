@@ -78,8 +78,13 @@ def test_trigger_returns_immediately_with_is_running_true(client):
     assert body["synced_count"] == 0
 
 
-def test_status_returns_is_cancelled_after_cancel(client):
-    """Cancel 后 status 反映 is_cancelled=true（直到下次 sync 启动清除）."""
+def test_status_after_cancel_reflects_idle_state(client):
+    """Cancel 后 status 反映 in_progress 仍非空（cancel 还没传播完成）.
+
+    取消语义：取消请求 → tracker.cancel() → 下次 /status 仍 is_running=true
+    因为 _by_code 还在 → 真正的 is_running=false 要等 background task 的
+    finally 块执行 tracker.clear_progress()。本测试只断言 cancel 期间状态。
+    """
     tracker.set("510300", ProgressInfo(
         code="510300", from_date=date(2024,4,19), to_date=date(2024,4,21),
         current_date=date(2024,4,20), total_days=3, completed_days=2,
@@ -88,30 +93,21 @@ def test_status_returns_is_cancelled_after_cancel(client):
     ))
     tracker.cancel()
     r = client.get("/api/sync/historical/status")
-    assert r.status_code == 200
     body = r.json()
-    assert body["is_cancelled"] is True
-    # is_running=True because _by_code is still populated; this test does
-    # NOT exercise the full trigger→cancel→wrapper path. See
-    # test_status_after_cancelled_sync for the end-to-end shape where the
-    # wrapper has cleared _by_code but preserved the cancel flag.
-    assert body["is_running"] is True
+    assert body["is_running"] is True  # _by_code 还在
+    assert body["in_progress"] is not None
+    assert len(body["in_progress"]) == 1
+    # is_cancelled 字段已删除（M17 简化）
+    assert "is_cancelled" not in body
 
 
 def test_status_after_cancelled_sync_returns_is_running_false(client, monkeypatch):
-    """End-to-end cancel lifecycle: after the background sync task completes
-    (with cancel flag set), /status must report is_running=false,
-    in_progress=null, is_cancelled=true.
-
-    Triggering the wrapper that calls tracker.clear_progress() (not clear())
-    is what makes this work — the cancel flag persists while _by_code is wiped.
+    """End-to-end: background sync 完成后，status 必须报告 is_running=false,
+    in_progress=null。is_cancelled 字段已删除（M17 简化）。
     """
-    # Monkeypatch sync_historical_for_pool to set cancel mid-execution and then
-    # let the wrapper's tracker.clear_progress() run on completion.
     from app.api import sync as sync_api
 
     def fake_sync(codes, from_date, to_date):
-        # Simulate a long-running sync: populate _by_code and set cancel.
         tracker.set("510300.XSHG", ProgressInfo(
             code="510300.XSHG",
             from_date=from_date, to_date=to_date,
@@ -120,22 +116,19 @@ def test_status_after_cancelled_sync_returns_is_running_false(client, monkeypatc
             started_at=datetime.now(timezone.utc),
         ))
         tracker.cancel()
-        # wrapper runs in finally — clear_progress() will fire after this returns
         return None
 
     monkeypatch.setattr(sync_api, "sync_historical_for_pool", fake_sync)
 
-    # Trigger (BackgroundTasks runs the wrapper synchronously in TestClient)
     r = client.post(
         "/api/sync/historical/trigger",
         params={"from_date": "2024-04-19", "to_date": "2024-04-19"},
     )
     assert r.status_code == 200
 
-    # Now GET /status — wrapper should have cleared _by_code but preserved cancel
     status = client.get("/api/sync/historical/status")
     assert status.status_code == 200
     body = status.json()
     assert body["is_running"] is False
     assert body["in_progress"] is None
-    assert body["is_cancelled"] is True
+    assert "is_cancelled" not in body  # M17 简化
