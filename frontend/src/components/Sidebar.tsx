@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 
 const CONFIG_ENTRIES = [
   { to: "/pool", label: "静态池" },
+  { to: "/portfolio", label: "持仓配置" },
   { to: "/themes", label: "主题词典" },
   { to: "/strategy", label: "策略参数" },
   { to: "/dynamic-pool", label: "动态池" },

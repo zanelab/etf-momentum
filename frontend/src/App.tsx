@@ -9,6 +9,7 @@ import DataSource from "@/pages/DataSource";
 import DynamicPoolPage from "@/pages/DynamicPoolPage";
 import EtfDetailPage from "@/pages/EtfDetailPage";
 import PoolConfig from "@/pages/PoolConfig";
+import PortfolioSettingsPage from "@/pages/PortfolioSettingsPage";
 import StrategyConfig from "@/pages/StrategyConfig";
 import ThemeConfig from "@/pages/ThemeConfig";
 
@@ -26,6 +27,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/pool" element={<PoolConfig />} />
+          <Route path="/portfolio" element={<PortfolioSettingsPage />} />
           <Route path="/themes" element={<ThemeConfig />} />
           <Route path="/strategy" element={<StrategyConfig />} />
           <Route path="/dynamic-pool" element={<DynamicPoolPage />} />

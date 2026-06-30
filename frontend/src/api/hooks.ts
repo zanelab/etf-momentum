@@ -429,3 +429,49 @@ export function useToggleDynamicEntry() {
       qc.invalidateQueries({ queryKey: ["dynamic-pool-with-status"] }),
   });
 }
+
+// ────────────── Portfolio holdings (CRUD) ──────────────
+
+export type PortfolioHoldingResponse = {
+  code: string;
+  name: string;
+  shares: number;
+  cost_price: number;
+};
+
+export type UpsertHoldingVariables = {
+  code: string;
+  name: string;
+  shares: number;
+  cost_price: number;
+};
+
+export function usePortfolioHoldings() {
+  return useQuery({
+    queryKey: ["portfolio-holdings"],
+    queryFn: () => api<PortfolioHoldingResponse[]>("/api/portfolio"),
+  });
+}
+
+export function useUpsertHolding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: UpsertHoldingVariables) =>
+      api<PortfolioHoldingResponse>("/api/portfolio", {
+        method: "POST",
+        body: JSON.stringify(vars),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portfolio-holdings"] }),
+  });
+}
+
+export function useDeleteHolding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) =>
+      api<void>(`/api/portfolio/${encodeURIComponent(code)}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portfolio-holdings"] }),
+  });
+}
