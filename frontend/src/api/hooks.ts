@@ -157,7 +157,12 @@ export type SyncStatusResponse = {
   etfs: SyncETFStatus[];
   in_progress: ProgressInfo[] | null;
   is_running: boolean;
+  is_cancelled: boolean;
 };
+
+export interface CancelResult {
+  cancelled: boolean;
+}
 
 export type SyncTriggerResult = SyncStatusResponse & {
   synced_count: number;
@@ -295,8 +300,18 @@ export function useTriggerSync() {
         `/api/sync/historical/trigger?from_date=${from_date}&to_date=${to_date}`,
         { method: "POST" },
       ),
-    onSuccess: (data) => {
-      qc.setQueryData(["sync-historical-status"], data);
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sync-historical-status"] });
+    },
+  });
+}
+
+export function useCancelSync() {
+  const qc = useQueryClient();
+  return useMutation<CancelResult, Error, void>({
+    mutationFn: () =>
+      api<CancelResult>("/api/sync/historical/cancel", { method: "POST" }),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sync-historical-status"] });
     },
   });
