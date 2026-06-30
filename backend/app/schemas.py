@@ -92,8 +92,7 @@ class SyncStatusResponse(BaseModel):
     etfs: list[SyncETFStatus]
     in_progress: list[ProgressInfo] | None = None
     is_running: bool = False
-    is_cancelled: bool = False
-    # is_cancelled 字段删除推迟到 task 2（get_sync_status 同步改造时一起处理）
+    # is_cancelled 字段已删除（M17 简化：取消语义通过 is_running/in_progress 推断）
 
 
 class SyncTriggerResult(SyncStatusResponse):

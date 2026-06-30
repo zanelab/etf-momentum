@@ -70,13 +70,15 @@ def _write_summary_file(date_str: str, rows: list[dict]) -> None:
 
 
 def test_status_endpoint_returns_pool_union(client: TestClient) -> None:
-    """GET /api/sync/historical/status returns one row per pool code, with name resolved.
+    """GET /api/sync/historical/status returns dynamic pool rows (M17).
 
-    Given: static_pool has 510300.XSHG, dynamic_pool has 510500.XSHG, and a
-    summary file dated 2026-03-01 lists both rows with status=ok.
+    Given: dynamic_pool has 510500.XSHG, and a summary file dated 2026-03-01
+    lists a row with status=ok.
     When: GET /api/sync/historical/status
-    Then: response.etfs has length 2; each row has code, name (from pool),
-          last_synced_date="2026-03-01", status="ok".
+    Then: response.etfs has length 1 (dynamic pool only); the row has
+          code, name (from pool), last_synced_date="2026-03-01", status="ok".
+    Static pool rows (e.g. 510300.XSHG) are NOT included — M17 etfs[] is
+    dynamic pool only.
     """
     _seed_pool_rows()
     _write_summary_file(
@@ -93,23 +95,28 @@ def test_status_endpoint_returns_pool_union(client: TestClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["as_of"] == "2026-03-01"
-    assert len(body["etfs"]) == 2
+    assert len(body["etfs"]) == 1
 
     by_code = {e["code"]: e for e in body["etfs"]}
-    assert by_code["510300.XSHG"]["name"] == "沪深300ETF"
-    assert by_code["510300.XSHG"]["last_synced_date"] == "2026-03-01"
-    assert by_code["510300.XSHG"]["status"] == "ok"
     assert by_code["510500.XSHG"]["name"] == "中证500ETF"
     assert by_code["510500.XSHG"]["last_synced_date"] == "2026-03-01"
     assert by_code["510500.XSHG"]["status"] == "ok"
+    # Static pool row is not in the response (M17 dynamic-pool-only)
+    assert "510300.XSHG" not in by_code
 
 
 def test_status_endpoint_marks_codes_not_in_summary_as_never(
     client: TestClient,
 ) -> None:
-    """If the summary file does not list a pool code, that code gets status=never."""
+    """If the summary file does not list a dynamic-pool code, it gets status=never.
+
+    M17: only dynamic-pool rows are surfaced in etfs[]; static-pool rows are
+    excluded entirely. The 'never' branch fires for dynamic-pool codes that
+    are not in the summary file.
+    """
     _seed_pool_rows()
-    # Summary only mentions 510300.XSHG; 510500.XSHG is absent → should be 'never'.
+    # Summary only mentions 510300.XSHG (static, excluded); 510500.XSHG
+    # (dynamic) is absent → should be 'never'.
     _write_summary_file(
         "2026-03-01",
         [
@@ -126,8 +133,8 @@ def test_status_endpoint_marks_codes_not_in_summary_as_never(
     assert by_code["510500.XSHG"]["status"] == "never"
     assert by_code["510500.XSHG"]["last_synced_date"] is None
     assert by_code["510500.XSHG"]["error"] is None
-    # 510300.XSHG is still ok
-    assert by_code["510300.XSHG"]["status"] == "ok"
+    # Static-pool row 510300.XSHG is not in etfs (M17 dynamic-pool-only)
+    assert "510300.XSHG" not in by_code
 
 
 def test_trigger_endpoint_returns_immediately_with_empty_synced_count(
@@ -197,7 +204,9 @@ def test_trigger_endpoint_returns_immediately_with_empty_synced_count(
     assert sbody["is_running"] is False
     assert sbody["in_progress"] is None
     assert sbody["as_of"] == "2024-04-21"
-    assert len(sbody["etfs"]) == 2
+    # M17: etfs now returns dynamic pool only (1 entry: 510500.XSHG)
+    assert len(sbody["etfs"]) == 1
+    assert sbody["etfs"][0]["code"] == "510500.XSHG"
     assert all(e["status"] == "ok" for e in sbody["etfs"])
 
 

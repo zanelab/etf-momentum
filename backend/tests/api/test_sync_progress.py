@@ -146,7 +146,9 @@ def test_trigger_sync_succeeds_with_valid_range(client, monkeypatch):
     assert sbody["is_running"] is False
     assert sbody["in_progress"] is None
     assert sbody["as_of"] == "2024-04-21"
-    assert len(sbody["etfs"]) == 2
+    # M17: etfs now returns dynamic pool only (1 entry: 510500.XSHG)
+    assert len(sbody["etfs"]) == 1
+    assert sbody["etfs"][0]["code"] == "510500.XSHG"
     assert all(e["status"] == "ok" for e in sbody["etfs"])
 
 
@@ -209,3 +211,60 @@ def test_trigger_sync_rejects_when_already_running(client):
     assert "already running" in r.json()["detail"]
     # The existing sync's tracker state must NOT be cleared by the rejected request
     assert tracker.is_active() is True
+
+
+def test_status_returns_dynamic_pool_only(client):
+    """status endpoint /etfs 只包含 dynamic pool（不包含 static_pool）."""
+    _seed_pool_rows()
+    s = client.get("/api/sync/historical/status")
+    assert s.status_code == 200
+    body = s.json()
+    codes = [e["code"] for e in body["etfs"]]
+    assert codes == ["510500.XSHG"]  # only the dynamic one
+    assert "510300.XSHG" not in codes  # static excluded
+
+
+def test_status_etfs_carry_is_enabled_and_last_synced_at(client):
+    """每项 etf 包含 is_enabled + last_synced_at 字段."""
+    _seed_pool_rows()
+    s = client.get("/api/sync/historical/status")
+    body = s.json()
+    item = body["etfs"][0]
+    assert item["code"] == "510500.XSHG"
+    assert "is_enabled" in item
+    assert item["is_enabled"] is False  # seeded as False
+    assert "last_synced_at" in item
+    assert item["last_synced_at"] is not None  # seeded with now
+
+
+def test_status_etfs_carries_progress_for_in_progress_code(client):
+    """tracker 中有的 code 在 etfs[] 里以 in_progress 状态出现 + 携带 progress."""
+    from datetime import datetime, timezone
+
+    from app.services.sync_progress import ProgressInfo
+
+    _seed_pool_rows()
+    tracker.set("510500.XSHG", ProgressInfo(
+        code="510500.XSHG",
+        from_date=date(2024, 4, 19), to_date=date(2024, 4, 21),
+        current_date=date(2024, 4, 20),
+        total_days=3, completed_days=2,
+        overall_index=2, overall_total=3,
+        started_at=datetime.now(timezone.utc),
+    ))
+    s = client.get("/api/sync/historical/status")
+    body = s.json()
+    item = next(e for e in body["etfs"] if e["code"] == "510500.XSHG")
+    assert item["status"] == "in_progress"
+    assert item["progress"] is not None
+    assert item["progress"]["completed"] == 2
+    assert item["progress"]["total"] == 3
+    assert item["progress"]["percent"] == 67  # round(2/3*100)
+
+
+def test_status_omits_is_cancelled_field(client):
+    """响应 schema 不再含 is_cancelled 字段."""
+    _seed_pool_rows()
+    s = client.get("/api/sync/historical/status")
+    body = s.json()
+    assert "is_cancelled" not in body

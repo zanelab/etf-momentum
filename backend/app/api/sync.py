@@ -10,9 +10,15 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from app.db import get_engine, session_scope
 from app.models.dynamic_pool import DynamicPoolEntry
 from app.models.static_pool import StaticPool
-from app.schemas import CancelResult, SyncETFStatus, SyncStatusResponse, SyncTriggerResult
+from app.schemas import (
+    CancelResult,
+    ProgressSnapshot,
+    SyncETFStatus,
+    SyncStatusResponse,
+    SyncTriggerResult,
+)
 from app.services.daily_sync import SYNC_DIR, sync_historical_for_pool
-from app.services.sync_progress import tracker
+from app.services.sync_progress import ProgressInfo, tracker
 
 router = APIRouter(tags=["sync"])
 
@@ -33,6 +39,29 @@ def _pool_union_codes() -> list[str]:
         for code, in s.query(DynamicPoolEntry.code).all():
             codes.add(code)
     return sorted(codes)
+
+
+def _pool_dynamic_codes() -> list[str]:
+    """Codes from dynamic_pool_entry only. Sorted for stable ordering."""
+    codes: set[str] = set()
+    with session_scope(get_engine()) as s:
+        for code, in s.query(DynamicPoolEntry.code).all():
+            codes.add(code)
+    return sorted(codes)
+
+
+def _dynamic_meta_lookup() -> dict[str, tuple[str, bool, datetime]]:
+    """Resolve code -> (name, is_enabled, last_synced_at) from dynamic_pool_entry."""
+    meta: dict[str, tuple[str, bool, datetime]] = {}
+    with session_scope(get_engine()) as s:
+        for code, name, is_enabled, last_synced_at in s.query(
+            DynamicPoolEntry.code,
+            DynamicPoolEntry.name,
+            DynamicPoolEntry.is_enabled,
+            DynamicPoolEntry.last_synced_at,
+        ).all():
+            meta[code] = (name, is_enabled, last_synced_at)
+    return meta
 
 
 def _name_lookup() -> dict[str, str]:
@@ -65,18 +94,53 @@ def _latest_summary() -> tuple[str | None, dict[str, dict]]:
 
 
 def _build_etfs(
-    codes: list[str], names: dict[str, str], by_code: dict[str, dict]
+    codes: list[str],
+    names: dict[str, str],
+    by_code: dict[str, dict],
+    meta: dict[str, tuple[str, bool, datetime]],
+    in_progress: list[ProgressInfo],
 ) -> list[SyncETFStatus]:
-    """Construct SyncETFStatus rows for each code, marking missing ones as 'never'."""
+    """Construct SyncETFStatus rows for dynamic pool codes with progress overlay."""
+    progress_by_code = {p.code: p for p in in_progress}
     etfs: list[SyncETFStatus] = []
     for code in codes:
         row = by_code.get(code)
-        if row is None:
+        dyn_name, is_enabled, last_synced_at = meta.get(
+            code, (names.get(code, ""), True, None)
+        )
+        # Prefer dynamic_pool_entry.name; fallback to static_pool name
+        name = dyn_name or names.get(code)
+        if code in progress_by_code:
+            p = progress_by_code[code]
+            completed = p.overall_index
+            total = p.overall_total
+            percent = round(completed / total * 100) if total > 0 else 0
             etfs.append(
                 SyncETFStatus(
                     code=code,
-                    name=names.get(code),
+                    name=name,
                     last_synced_date=None,
+                    last_synced_at=last_synced_at,
+                    is_enabled=is_enabled,
+                    status="in_progress",
+                    error=None,
+                    progress=ProgressSnapshot(
+                        completed=completed,
+                        total=total,
+                        current_code=p.code,
+                        current_date=p.current_date,
+                        percent=percent,
+                    ),
+                )
+            )
+        elif row is None:
+            etfs.append(
+                SyncETFStatus(
+                    code=code,
+                    name=name,
+                    last_synced_date=None,
+                    last_synced_at=last_synced_at,
+                    is_enabled=is_enabled,
                     status="never",
                     error=None,
                 )
@@ -85,8 +149,10 @@ def _build_etfs(
             etfs.append(
                 SyncETFStatus(
                     code=code,
-                    name=names.get(code),
+                    name=name,
                     last_synced_date=row.get("date"),
+                    last_synced_at=last_synced_at,
+                    is_enabled=is_enabled,
                     status=row.get("status", "ok"),
                     error=row.get("error"),
                 )
@@ -96,20 +162,19 @@ def _build_etfs(
 
 @router.get("/sync/historical/status", response_model=SyncStatusResponse)
 def get_sync_status() -> SyncStatusResponse:
-    """Return the latest historical-sync status for every code in the pool union.
-
-    If a sync is currently running, also returns the in-progress list.
-    """
+    """Return dynamic pool + history sync status (single endpoint, drives the page)."""
     names = _name_lookup()
+    meta = _dynamic_meta_lookup()
     as_of, by_code = _latest_summary()
-    etfs = _build_etfs(_pool_union_codes(), names, by_code)
     in_progress = tracker.get_all() if tracker.is_active() else None
+    etfs = _build_etfs(
+        _pool_dynamic_codes(), names, by_code, meta, in_progress or []
+    )
     return SyncStatusResponse(
         as_of=as_of,
         etfs=etfs,
         in_progress=in_progress,
         is_running=tracker.is_active(),
-        is_cancelled=tracker.is_cancel_requested(),
     )
 
 
