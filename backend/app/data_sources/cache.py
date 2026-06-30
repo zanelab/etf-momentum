@@ -7,7 +7,7 @@ on miss and writes the result back. Hit/miss counters are exposed via
 """
 from datetime import date as date_cls
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 from sqlalchemy.engine import Engine
@@ -153,7 +153,7 @@ class CachedSource(MarketDataSource):
         code: str,
         start: date_cls,
         end: date_cls,
-        fields: Optional[list[FieldName]] = None,
+        fields: Optional[List[FieldName]] = None,
     ) -> pd.DataFrame:
         cached = self._read_range(code, start, end)
         # If every date in the cached range covers what inner would return,
@@ -197,8 +197,8 @@ class CachedSource(MarketDataSource):
             df = df[cols]
         return df
 
-    def all_etfs(self, as_of: date_cls) -> list[str]:
+    def all_etfs(self, as_of: date_cls) -> List[str]:
         return self._inner.all_etfs(as_of)
 
-    def all_etf_entries(self, as_of: date_cls) -> list[tuple[str, str]]:
+    def all_etf_entries(self, as_of: date_cls) -> List[tuple[str, str]]:
         return self._inner.all_etf_entries(as_of)

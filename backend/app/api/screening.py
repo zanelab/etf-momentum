@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date as date_type, datetime
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -44,13 +44,13 @@ class ScreeningTargetDetail(BaseModel):
     momentum_score: float
     annual_return: float
     r2: float
-    volume_ratio: float | None
+    volume_ratio: Optional[float]
 
 
 class ScreeningTodayResponse(BaseModel):
     as_of: date_type
-    targets: list[str]
-    details: list[ScreeningTargetDetail]
+    targets: List[str]
+    details: List[ScreeningTargetDetail]
 
 
 @router.get("/screening/today", response_model=ScreeningTodayResponse)
@@ -102,7 +102,7 @@ class PortfolioResponse(BaseModel):
     total_pnl: float
     available_cash: float
     net_value: float
-    holdings: list[PortfolioHoldingOut]
+    holdings: List[PortfolioHoldingOut]
 
 
 @router.get("/portfolio", response_model=PortfolioResponse)
@@ -110,7 +110,7 @@ def portfolio(source: Optional[str] = Query(None, description="Data source overr
     as_of = datetime.now()
     market = _market(source)
     holdings = get_all_holdings()
-    rows: list[PortfolioHoldingOut] = []
+    rows: List[PortfolioHoldingOut] = []
     total_market_value = 0.0
     total_cost = 0.0
     for h in holdings:
@@ -153,15 +153,15 @@ class SignalOut(BaseModel):
     type: str
     etf: str
     reason: str
-    shares: int | None = None
-    target_value: float | None = None
-    market_value: float | None = None
-    pnl: float | None = None
+    shares: Optional[int] = None
+    target_value: Optional[float] = None
+    market_value: Optional[float] = None
+    pnl: Optional[float] = None
 
 
 class SignalsResponse(BaseModel):
     as_of: date_type
-    signals: list[SignalOut]
+    signals: List[SignalOut]
 
 
 @router.get("/signals/today", response_model=SignalsResponse)

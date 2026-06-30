@@ -1,3 +1,4 @@
+from typing import Optional, List
 """Static ETF pool entry."""
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ class StaticPool(SQLModel, table=True):
     __tablename__ = "static_pool"
 
     code: str = Field(primary_key=True, max_length=32)
-    display_name: str | None = Field(default=None, max_length=128)
+    display_name: Optional[str] = Field(default=None, max_length=128)
     enabled: bool = Field(default=True, nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

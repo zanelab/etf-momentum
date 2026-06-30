@@ -1,5 +1,5 @@
 """Portfolio REST API."""
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -24,13 +24,13 @@ class PortfolioCreate(BaseModel):
 
 
 class PortfolioUpdate(BaseModel):
-    name: str | None = Field(default=None, max_length=128)
-    shares: int | None = Field(default=None, gt=0)
-    cost_price: float | None = Field(default=None, gt=0)
+    name: Optional[str] = Field(default=None, max_length=128)
+    shares: Optional[int] = Field(default=None, gt=0)
+    cost_price: Optional[float] = Field(default=None, gt=0)
 
 
-@router.get("", response_model=list[PortfolioResponse])
-def list_portfolio() -> list[dict[str, Any]]:
+@router.get("", response_model=List[PortfolioResponse])
+def list_portfolio() -> List[dict[str, Any]]:
     """Return all portfolio holdings."""
     holdings = get_all_holdings()
     return [

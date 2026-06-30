@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date as date_type
-from typing import Annotated
+from typing import Annotated, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -14,17 +14,17 @@ from app.services.today import load_display_names
 router = APIRouter(tags=["market"])
 
 
-def _market(source: str | None = None):
+def _market(source: Optional[str] = None):
     return make_source(source)
 
 
 class ETFListItem(BaseModel):
     code: str
-    display_name: str | None = None
+    display_name: Optional[str] = None
 
 
 class ETFListResponse(BaseModel):
-    etfs: list[ETFListItem]
+    etfs: List[ETFListItem]
 
 
 @router.get("/list", response_model=ETFListResponse)
@@ -46,11 +46,11 @@ class HistoryResponse(BaseModel):
     code: str
     start: str
     end: str
-    fields: list[str]
-    rows: list[dict]
+    fields: List[str]
+    rows: List[Dict]
 
 
-def _serialize_value(v) -> float | None:
+def _serialize_value(v) -> Optional[float]:
     if v is None:
         return None
     try:
@@ -67,11 +67,11 @@ def market_history(
     start: Annotated[date_type, Query(...)],
     end: Annotated[date_type, Query(...)],
     fields: Annotated[
-        str | None,
+        Optional[str],
         Query(description="Comma-separated field list"),
     ] = None,
     source: Annotated[
-        str | None,
+        Optional[str],
         Query(description="Override data source: fixture or akshare"),
     ] = None,
 ) -> HistoryResponse:
@@ -87,9 +87,9 @@ def market_history(
         df = market.history(code, start, end, fields=requested)
     except DataNotFoundError as err:
         raise HTTPException(status_code=404, detail=f"No data for {code}") from err
-    rows: list[dict] = []
+    rows: List[Dict] = []
     for ts, row in df.iterrows():
-        rec: dict = {"date": ts.strftime("%Y-%m-%d")}
+        rec: Dict = {"date": ts.strftime("%Y-%m-%d")}
         for f in requested:
             rec[f] = _serialize_value(row.get(f))
         rows.append(rec)

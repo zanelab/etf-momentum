@@ -1,3 +1,4 @@
+from typing import Optional, List
 """Theme keyword dictionary entry."""
 from __future__ import annotations
 
@@ -9,6 +10,6 @@ class ThemeKeyword(SQLModel, table=True):
 
     __tablename__ = "theme_keyword"
 
-    id: int | None = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     theme: str = Field(index=True, max_length=64, nullable=False)
     keyword: str = Field(max_length=64, nullable=False, unique=True)

@@ -1,7 +1,7 @@
 """Per-(code, trade_date) OHLCV cache row for the real-time data source."""
 from datetime import date as date_cls
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from sqlmodel import Field, SQLModel
 

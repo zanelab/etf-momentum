@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional, List
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,27 +13,27 @@ class StaticPoolEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     code: str = Field(min_length=4, max_length=32)
-    display_name: str | None = None
+    display_name: Optional[str] = None
     enabled: bool = True
 
 
 class StaticPoolReplace(BaseModel):
     """Replace the entire static pool atomically."""
 
-    entries: list[StaticPoolEntry]
+    entries: List[StaticPoolEntry]
 
 
 class StaticPoolUpdate(BaseModel):
     """Partial update of a single entry."""
 
     enabled: bool | None = None
-    display_name: str | None = None
+    display_name: Optional[str] = None
 
 
 class ThemeDictionary(BaseModel):
     """Full theme dictionary as { theme: [keywords] }."""
 
-    themes: dict[str, list[str]]
+    themes: dict[str, List[str]]
 
 
 class StrategyParams(BaseModel):
@@ -78,19 +78,19 @@ class SyncETFStatus(BaseModel):
     """Per-ETF historical-sync state surfaced by the sync API."""
 
     code: str
-    name: str | None
-    last_synced_date: str | None
+    name: Optional[str]
+    last_synced_date: Optional[str]
     last_synced_at: datetime | None = None
     is_enabled: bool = True
     status: Literal["ok", "failed", "missing", "never", "in_progress"]
-    error: str | None = None
+    error: Optional[str] = None
     progress: ProgressSnapshot | None = None
 
 
 class SyncStatusResponse(BaseModel):
-    as_of: str | None
-    etfs: list[SyncETFStatus]
-    in_progress: list[ProgressInfo] | None = None
+    as_of: Optional[str]
+    etfs: List[SyncETFStatus]
+    in_progress: List[ProgressInfo] | None = None
     is_running: bool = False
     # is_cancelled 字段已删除（M17 简化：取消语义通过 is_running/in_progress 推断）
 

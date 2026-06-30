@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional, List
 
 from app.data_sources.base import DataNotFoundError, MarketDataSource
 from app.models.portfolio import Portfolio
@@ -26,10 +26,10 @@ class Signal:
     type: SignalType
     etf: str
     reason: str
-    shares: int | None = None
-    target_value: float | None = None
-    market_value: float | None = None
-    pnl: float | None = None
+    shares: Optional[int] = None
+    target_value: Optional[float] = None
+    market_value: Optional[float] = None
+    pnl: Optional[float] = None
 
 
 def _round_lot(shares: float) -> int:
@@ -38,13 +38,13 @@ def _round_lot(shares: float) -> int:
 
 def generate_signals(
     *,
-    targets: list[str],
-    holdings: list[Portfolio],
+    targets: List[str],
+    holdings: List[Portfolio],
     total_value: float,
     as_of: datetime,
     market: MarketDataSource,
     params: StrategyParams,
-) -> list[Signal]:
+) -> List[Signal]:
     """Return the rebalance signals for today.
 
     Output order: SELL signals first (free cash), then BUY signals. Each
@@ -55,7 +55,7 @@ def generate_signals(
     target_set = set(targets)
     holding_map = {h.code: h for h in holdings}
 
-    signals: list[Signal] = []
+    signals: List[Signal] = []
 
     # ── SELL signals: drop anything held that isn't a target
     for code, h in holding_map.items():

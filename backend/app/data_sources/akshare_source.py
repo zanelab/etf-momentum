@@ -5,7 +5,7 @@ rest of the app can be loaded even when akshare is not installed.
 """
 from datetime import date as date_cls
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
 
@@ -77,7 +77,7 @@ class AkShareSource(MarketDataSource):
         code: str,
         start: date_cls,
         end: date_cls,
-        fields: Optional[list[FieldName]] = None,
+        fields: Optional[List[FieldName]] = None,
     ) -> pd.DataFrame:
         df = self._call(lambda: self._fetch_history_raw(code, start, end))
         if df.empty:
@@ -105,10 +105,10 @@ class AkShareSource(MarketDataSource):
             "money": float(row["money"]) if "money" in row and row["money"] is not None else 0.0,
         }
 
-    def all_etfs(self, as_of: date_cls) -> list[str]:
+    def all_etfs(self, as_of: date_cls) -> List[str]:
         return [code for code, _ in self.all_etf_entries(as_of)]
 
-    def all_etf_entries(self, as_of: date_cls) -> list[tuple[str, str]]:
+    def all_etf_entries(self, as_of: date_cls) -> List[tuple[str, str]]:
         akshare = _import_akshare()
         df = self._call(lambda: akshare.fund_etf_spot_em())
         if df is None or df.empty:
@@ -120,8 +120,8 @@ class AkShareSource(MarketDataSource):
             names = df[_NAME_COL_NAME].astype(str)
         else:
             names = raw_codes
-        codes: list[str] = []
-        valid_names: list[str] = []
+        codes: List[str] = []
+        valid_names: List[str] = []
         for raw, n in zip(raw_codes.tolist(), names.tolist()):
             try:
                 codes.append(normalize_etf_code(raw))
