@@ -205,3 +205,17 @@
   - `useDynamicPool` 5s 轮询仍在 `/dynamic-pool` 运行（独立 PR 处理）
   - 同步运行时如需「取消」按钮需新增 `POST /api/sync/historical/cancel` 端点（本期 out-of-scope）
 - 下一步：merge 阶段合入 main
+
+## drop-dynamic-pool-polling 变更归档
+
+- 日期：2026-06-30（plan 12/12，1 个 commit — `132c834`）
+- 分支：`feature/drop-dynamic-pool-polling`（基于 main `e56cd43` 启动）
+- 流程归属：openspec（`openspec/changes/drop-dynamic-pool-polling/{proposal.md, spec.md, plan.md}`）
+- 范围：动态池轮询收敛——删除 `useDynamicPool` 的 5s 轮询，依赖 mutation-driven refresh（已有）+ TanStack Query 默认 `refetchOnWindowFocus: true` 兜底跨 tab 同步
+- 关键产物（极小变更，1 行代码 + 2 测试）：
+  - **前端 hooks**：`useDynamicPool`（`frontend/src/api/hooks.ts:372-378`）删除 `refetchInterval: 5_000`；其他 5 个有 refetchInterval 的 hook 不动（`useScreeningToday` / `usePortfolio` / `useSignalsToday` / `useHealthStats` / `useSyncStatus` 各自有轮询依据）
+  - **测试**：`DynamicPoolPage.test.tsx` 新增 2 个测试——「停留 30s 只 1 次请求」（fake timer 限定 `setInterval`/`clearInterval` 避免 `waitFor` 死锁）+ 「mutation 后 refetch 触发」
+- 实施过程：1 个 subagent-driven-development 任务（Task 1）+ Task 2 用户决定 skip smoke + final review（trivial 1-line 变更，2 个单测覆盖核心行为）
+- CI 验证：前端 `npm test` 58 passed（56 既有 + 2 新增）/ `tsc --noEmit` 通过 / `npm run build` 成功
+- 已知限制：无
+- 下一步：merge 阶段合入 main

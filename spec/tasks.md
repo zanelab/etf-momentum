@@ -20,6 +20,7 @@
 | M12 | ETF 历史数据同步可观测（per-ETF 状态 + /sync 页面） | ✅ 完成 |
 | M13 | 动态池中枢化（合并 `/history` `/sync` 到 `/dynamic-pool`；下钻子页） | ✅ 完成 |
 | M14 | 同步进度可视化（`DateRangePicker` + `SyncProgressTracker` + 行内/顶部进度条） | ✅ 完成 |
+| M15 | 动态池轮询收敛（删除 `useDynamicPool` 5s 轮询，依赖 mutation-driven refresh） | ✅ 完成 |
 
 ## 详细任务
 
@@ -163,6 +164,13 @@
 - [x] Final review 修复 2 项 Minor（730 天客户端校验 + 并发 trigger 测试）（commit 73cee3f）
 - [x] Manual smoke 11/11 步骤通过（Modal 弹出 / 默认值 / 校验 / 范围触发 / Network / 进度展示 / 行内 / 完成后清除 / 按钮 disabled / 后端 400 / 跨 tab refetch）
 - [x] 前端 56 passed / 后端 191 passed / tsc / ruff / build 全绿
+
+### M15 动态池轮询收敛（drop-dynamic-pool-polling 2026-06-30）
+
+- [x] `useDynamicPool` 删除 `refetchInterval: 5_000`（1 行；commit 132c834）
+- [x] `DynamicPoolPage.test.tsx` 新增 2 个测试：30s 无 refetch + mutation 后 refetch（fake timer 限定 `setInterval`/`clearInterval` 避免 `waitFor` 死锁）
+- [x] 用户决定 skip 手动 smoke + final review（trivial 1-line 变更；2 个单测已覆盖核心行为）
+- [x] 前端 58 passed / tsc / build 全绿
 
 ## 当前迭代
 

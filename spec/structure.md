@@ -91,7 +91,7 @@ etf-momentum/
 ├── spec/                   # 项目级 Spec（累积式维护）
 │   ├── requirements.md
 │   ├── design.md
-│   ├── tasks.md            # M0–M14 全部 ✅
+│   ├── tasks.md            # M0–M15 全部 ✅
 │   ├── devlog.md
 │   └── structure.md        # 本文档
 ├── openspec/
@@ -105,7 +105,8 @@ etf-momentum/
 │           ├── dashboard-flatten-20260629         # M11.1：Dashboard 化整为零
 │           ├── etf-historical-sync-20260629       # M12：历史同步可观测
 │           ├── dynamic-pool-consolidate-20260629  # M13：动态池中枢化（合并 /history /sync + 下钻子页）
-│           └── add-sync-progress-ui-20260629      # M14：同步进度可视化 + 日期范围支持
+│           ├── add-sync-progress-ui-20260629      # M14：同步进度可视化 + 日期范围支持
+│           └── drop-dynamic-pool-polling-20260630 # M15：删除 useDynamicPool 5s 轮询
 ├── scripts/                # speccoding 工具脚本
 │   ├── speccoding-state.sh
 │   ├── speccoding-gate.sh

@@ -156,6 +156,16 @@
   - `_read_latest_bar` 现为 dead code（被 `_read_bar_for_date` 替代），可后续清理
   - 进度展示依赖 10s 轮询；极短同步（< 10s）可能看不到横幅；用户切回 tab 时 `refetchOnWindowFocus` 兜底
 
+## 动态池轮询收敛（drop-dynamic-pool-polling 2026-06-30）
+
+- **目标**：删除 `useDynamicPool` 的 `refetchInterval: 5_000`——该端点对应的数据只通过用户点击「同步 ETF」或行内启用切换才会变化，无后台写源，5s 轮询是纯浪费
+- **范围**：纯前端 1 行配置修改（`frontend/src/api/hooks.ts:376`）+ 2 个新 vitest 测试；后端 0 改动
+- **3 个 caller**：`EtfDetailPage` / `DynamicPoolPage` / `Dashboard`——都是只读 `query.data`，去掉轮询不改变读路径，只改变 refetch 频率
+- **刷新机制**：
+  - 主动：mutation（`useSyncDynamicPool` / `useToggleDynamicEntry`）已正确 `qc.invalidateQueries({ queryKey: ["dynamic-pool"] })`
+  - 跨 tab：依赖 TanStack Query 默认 `refetchOnWindowFocus: true`，切回 tab 时自动 refetch
+- **测试覆盖**：前端 vitest 58 passed（56 既有 + 2 新增：30s 无 refetch + mutation 后 refetch）；tsc / build 干净
+
 ## 待用户确认
 
 - 数据源：是否已有可用数据源（如 akshare、tushare、聚宽自带）？还是先 mock？
