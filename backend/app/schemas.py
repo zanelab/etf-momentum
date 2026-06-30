@@ -64,14 +64,27 @@ class DynamicPoolUpdate(BaseModel):
     is_enabled: bool | None = None
 
 
+class ProgressSnapshot(BaseModel):
+    """Progress subset surfaced on a per-ETF basis (when in_progress)."""
+
+    completed: int
+    total: int
+    current_code: str
+    current_date: date
+    percent: int
+
+
 class SyncETFStatus(BaseModel):
     """Per-ETF historical-sync state surfaced by the sync API."""
 
     code: str
     name: str | None
     last_synced_date: str | None
-    status: Literal["ok", "failed", "missing", "never"]
+    last_synced_at: datetime | None = None
+    is_enabled: bool = True
+    status: Literal["ok", "failed", "missing", "never", "in_progress"]
     error: str | None = None
+    progress: ProgressSnapshot | None = None
 
 
 class SyncStatusResponse(BaseModel):
@@ -80,6 +93,7 @@ class SyncStatusResponse(BaseModel):
     in_progress: list[ProgressInfo] | None = None
     is_running: bool = False
     is_cancelled: bool = False
+    # is_cancelled 字段删除推迟到 task 2（get_sync_status 同步改造时一起处理）
 
 
 class SyncTriggerResult(SyncStatusResponse):
