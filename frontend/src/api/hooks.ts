@@ -130,12 +130,23 @@ export type DynamicPoolSyncResult = {
   enabled: number;
 };
 
+export type ProgressSnapshot = {
+  completed: number;
+  total: number;
+  current_code: string;
+  current_date: string;
+  percent: number;
+};
+
 export type SyncETFStatus = {
   code: string;
   name: string | null;
   last_synced_date: string | null;
-  status: "ok" | "failed" | "missing" | "never";
+  last_synced_at: string | null;
+  is_enabled: boolean;
+  status: "ok" | "failed" | "missing" | "never" | "in_progress";
   error: string | null;
+  progress: ProgressSnapshot | null;
 };
 
 // ProgressInfo: mirror of backend/app/services/sync_progress.py:ProgressInfo.
@@ -157,7 +168,6 @@ export type SyncStatusResponse = {
   etfs: SyncETFStatus[];
   in_progress: ProgressInfo[] | null;
   is_running: boolean;
-  is_cancelled: boolean;
 };
 
 export interface CancelResult {
@@ -279,11 +289,12 @@ export function useSignalsToday() {
 
 // ────────────── Sync historical ──────────────
 
-export function useSyncStatus() {
+export function useDynamicPoolWithStatus() {
   return useQuery({
-    queryKey: ["sync-historical-status"],
+    queryKey: ["dynamic-pool-with-status"],
     queryFn: () => api<SyncStatusResponse>("/api/sync/historical/status"),
-    refetchInterval: 10_000,
+    refetchInterval: (query) =>
+      query.state.data?.is_running ? 2_000 : false,
   });
 }
 
@@ -301,7 +312,7 @@ export function useTriggerSync() {
         { method: "POST" },
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sync-historical-status"] });
+      qc.invalidateQueries({ queryKey: ["dynamic-pool-with-status"] });
     },
   });
 }
@@ -312,7 +323,7 @@ export function useCancelSync() {
     mutationFn: () =>
       api<CancelResult>("/api/sync/historical/cancel", { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sync-historical-status"] });
+      qc.invalidateQueries({ queryKey: ["dynamic-pool-with-status"] });
     },
   });
 }
@@ -398,7 +409,8 @@ export function useSyncDynamicPool() {
       api<DynamicPoolSyncResult>("/api/configs/pool/dynamic/sync", {
         method: "POST",
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-pool"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["dynamic-pool-with-status"] }),
   });
 }
 
@@ -413,6 +425,7 @@ export function useToggleDynamicEntry() {
           body: JSON.stringify({ is_enabled: isEnabled }),
         },
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-pool"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["dynamic-pool-with-status"] }),
   });
 }
