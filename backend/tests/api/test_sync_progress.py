@@ -89,7 +89,14 @@ def test_trigger_sync_rejects_range_over_730_days(client):
 
 
 def test_trigger_sync_succeeds_with_valid_range(client, monkeypatch):
-    """When pool is seeded and sync is monkeypatched, valid date range triggers a sync."""
+    """When pool is seeded and sync is monkeypatched, valid date range triggers a sync.
+
+    BackgroundTasks semantics: trigger returns 200 immediately with
+    is_running=True / synced_count=0 / etfs=[]. TestClient waits for
+    background tasks to complete before the request returns, so after the
+    post() we can assert the side-effects (summary file written, tracker
+    cleared) without polling the status endpoint.
+    """
     _seed_pool_rows()
 
     import app.api.sync as sync_api_module
@@ -116,10 +123,31 @@ def test_trigger_sync_succeeds_with_valid_range(client, monkeypatch):
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["is_running"] is False
+    # Trigger response now reflects "scheduled, not yet complete":
+    assert body["is_running"] is True
+    assert body["synced_count"] == 0
+    assert body["etfs"] == []
+    assert body["in_progress"] == []
     assert body["from_date"] == "2024-04-19"
     assert body["to_date"] == "2024-04-21"
-    assert body["in_progress"] is None  # cleared after success
+
+    # TestClient.post() awaits BackgroundTasks, so the side-effects are
+    # observable immediately after the call returns:
+    # (a) summary JSON was written by the background sync
+    assert (daily_sync.SYNC_DIR / "2024-04-21.json").exists()
+    # (b) tracker was cleared by sync_historical_for_pool on normal completion
+    assert tracker.is_active() is False
+    assert tracker.get_all() == []
+
+    # And the status endpoint reflects the post-sync state:
+    s = client.get("/api/sync/historical/status")
+    assert s.status_code == 200
+    sbody = s.json()
+    assert sbody["is_running"] is False
+    assert sbody["in_progress"] is None
+    assert sbody["as_of"] == "2024-04-21"
+    assert len(sbody["etfs"]) == 2
+    assert all(e["status"] == "ok" for e in sbody["etfs"])
 
 
 def test_status_includes_in_progress_during_sync(client):

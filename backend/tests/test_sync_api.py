@@ -130,13 +130,20 @@ def test_status_endpoint_marks_codes_not_in_summary_as_never(
     assert by_code["510300.XSHG"]["status"] == "ok"
 
 
-def test_trigger_endpoint_runs_sync_and_returns_synced_count(
+def test_trigger_endpoint_returns_immediately_with_empty_synced_count(
     client: TestClient, monkeypatch
 ) -> None:
-    """POST /api/sync/historical/trigger calls sync_historical_for_pool and returns synced_count.
+    """POST /api/sync/historical/trigger returns 200 immediately with synced_count=0.
 
-    Strategy: monkeypatch sync_historical_for_pool so it writes a controlled
-    summary file (mimicking its real behaviour without hitting real fixtures).
+    BackgroundTasks semantics: trigger schedules the sync to run in the
+    background and returns the placeholder response
+    (synced_count=0, etfs=[], in_progress=[], is_running=True) without
+    waiting for completion. The sync RESULT can be observed either via
+    TestClient awaiting the background task (side-effects visible after
+    post() returns) or by polling the /status endpoint.
+
+    This test asserts the trigger-response shape and confirms that the
+    sync actually ran by checking the post-sync status endpoint.
     """
     _seed_pool_rows()
 
@@ -165,9 +172,12 @@ def test_trigger_endpoint_runs_sync_and_returns_synced_count(
     assert resp.status_code == 200, resp.text
     body = resp.json()
 
-    assert body["synced_count"] == 2
-    assert body["etfs"], "etfs should be non-empty"
-    assert all(e["status"] == "ok" for e in body["etfs"])
+    # Trigger returns immediately with placeholder values (per Global Constraints:
+    # "trigger response no longer contains synced_count / etfs data"):
+    assert body["synced_count"] == 0
+    assert body["etfs"] == []
+    assert body["in_progress"] == []
+    assert body["is_running"] is True
     assert body["from_date"] == "2024-04-19"
     assert body["to_date"] == "2024-04-21"
     # run_at is set and parseable as ISO-8601 with timezone.
@@ -179,11 +189,29 @@ def test_trigger_endpoint_runs_sync_and_returns_synced_count(
     now = datetime.now(timezone.utc)
     assert abs((now - run_at).total_seconds()) < 60
 
+    # The actual sync result must be verified via the status endpoint
+    # (which reflects the post-sync state once the background task finishes):
+    status_resp = client.get("/api/sync/historical/status")
+    assert status_resp.status_code == 200
+    sbody = status_resp.json()
+    assert sbody["is_running"] is False
+    assert sbody["in_progress"] is None
+    assert sbody["as_of"] == "2024-04-21"
+    assert len(sbody["etfs"]) == 2
+    assert all(e["status"] == "ok" for e in sbody["etfs"])
 
-def test_trigger_endpoint_returns_500_on_sync_failure(
+
+def test_trigger_endpoint_propagates_background_sync_failure(
     client: TestClient, monkeypatch
 ) -> None:
-    """If sync_historical_for_pool raises, the endpoint returns 500."""
+    """If the background sync_historical_for_pool raises, TestClient surfaces
+    the exception out of the trigger POST (because Starlette awaits background
+    tasks before the request returns).
+
+    In production (uvicorn) the response is already sent and the background
+    failure would only surface in logs — but TestClient's in-process semantics
+    re-raise it, which is the observable behaviour under test.
+    """
     _seed_pool_rows()
 
     import app.api.sync as sync_api_module
@@ -194,9 +222,8 @@ def test_trigger_endpoint_returns_500_on_sync_failure(
     # Patch where it's USED (sync_api_module bound it at import time).
     monkeypatch.setattr(sync_api_module, "sync_historical_for_pool", boom)
 
-    resp = client.post(
-        "/api/sync/historical/trigger",
-        params={"from_date": "2024-04-19", "to_date": "2024-04-21"},
-    )
-    assert resp.status_code == 500
-    assert "akshare timeout" in resp.json()["detail"]
+    with pytest.raises(RuntimeError, match="akshare timeout"):
+        client.post(
+            "/api/sync/historical/trigger",
+            params={"from_date": "2024-04-19", "to_date": "2024-04-21"},
+        )
