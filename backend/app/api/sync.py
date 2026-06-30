@@ -134,19 +134,18 @@ def trigger_sync(
         raise HTTPException(400, "pool is empty; nothing to sync")
 
     # Schedule the actual sync to run after this response is sent.
-    # The wrapper clears the tracker on NORMAL completion (not on cancel —
-    # frontend status poll needs to observe the cancel state).
+    # The wrapper clears the progress entries on completion (both normal and
+    # cancel paths). On cancel the cancel flag is preserved so the next
+    # /status poll sees `is_running=false, in_progress=null, is_cancelled=true`.
     def _run_sync_and_clear() -> None:
         try:
             sync_historical_for_pool(
                 codes=codes, from_date=from_date, to_date=to_date
             )
         finally:
-            # Only clear on normal completion. On cancel the tracker stays
-            # populated so the frontend status poll can still observe the
-            # last progress + cancel flag.
-            if not tracker.is_cancel_requested():
-                tracker.clear()
+            # Always clear progress (so is_active() returns False → is_running=false).
+            # The cancel flag is preserved separately so /status reflects is_cancelled.
+            tracker.clear_progress()
 
     background.add_task(_run_sync_and_clear)
 

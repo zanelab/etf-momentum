@@ -39,6 +39,16 @@ class SyncProgressTracker:
         self._by_code.clear()
         self._cancel_requested = False
 
+    def clear_progress(self) -> None:
+        """Clear progress entries only; preserve the cancel flag.
+
+        Used by the API wrapper after the background sync task completes:
+        the cancel flag must persist so the next /status poll can observe
+        `is_cancelled=true`. `clear()` is the right method for test teardown
+        and any caller that wants a full reset (including the cancel flag).
+        """
+        self._by_code.clear()
+
     def is_active(self) -> bool:
         return bool(self._by_code)
 

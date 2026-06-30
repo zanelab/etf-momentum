@@ -91,4 +91,51 @@ def test_status_returns_is_cancelled_after_cancel(client):
     assert r.status_code == 200
     body = r.json()
     assert body["is_cancelled"] is True
-    assert body["is_running"] is True  # still running until cancel propagates
+    # is_running=True because _by_code is still populated; this test does
+    # NOT exercise the full trigger→cancel→wrapper path. See
+    # test_status_after_cancelled_sync for the end-to-end shape where the
+    # wrapper has cleared _by_code but preserved the cancel flag.
+    assert body["is_running"] is True
+
+
+def test_status_after_cancelled_sync_returns_is_running_false(client, monkeypatch):
+    """End-to-end cancel lifecycle: after the background sync task completes
+    (with cancel flag set), /status must report is_running=false,
+    in_progress=null, is_cancelled=true.
+
+    Triggering the wrapper that calls tracker.clear_progress() (not clear())
+    is what makes this work — the cancel flag persists while _by_code is wiped.
+    """
+    # Monkeypatch sync_historical_for_pool to set cancel mid-execution and then
+    # let the wrapper's tracker.clear_progress() run on completion.
+    from app.api import sync as sync_api
+
+    def fake_sync(codes, from_date, to_date):
+        # Simulate a long-running sync: populate _by_code and set cancel.
+        tracker.set("510300.XSHG", ProgressInfo(
+            code="510300.XSHG",
+            from_date=from_date, to_date=to_date,
+            current_date=from_date, total_days=1, completed_days=0,
+            overall_index=1, overall_total=1,
+            started_at=datetime.now(timezone.utc),
+        ))
+        tracker.cancel()
+        # wrapper runs in finally — clear_progress() will fire after this returns
+        return None
+
+    monkeypatch.setattr(sync_api, "sync_historical_for_pool", fake_sync)
+
+    # Trigger (BackgroundTasks runs the wrapper synchronously in TestClient)
+    r = client.post(
+        "/api/sync/historical/trigger",
+        params={"from_date": "2024-04-19", "to_date": "2024-04-19"},
+    )
+    assert r.status_code == 200
+
+    # Now GET /status — wrapper should have cleared _by_code but preserved cancel
+    status = client.get("/api/sync/historical/status")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["is_running"] is False
+    assert body["in_progress"] is None
+    assert body["is_cancelled"] is True
