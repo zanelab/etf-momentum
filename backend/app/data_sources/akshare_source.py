@@ -3,6 +3,24 @@
 Wraps the `akshare` library. Lazy-imports the package on first call so the
 rest of the app can be loaded even when akshare is not installed.
 """
+import requests
+
+# Monkey-patch requests to add browser-like headers for eastmoney API access.
+# eastmoney blocks requests without proper User-Agent/Referer headers.
+_original_send = requests.Session.send
+
+
+def _patched_send(self, request, *args, **kwargs):
+    request.headers["User-Agent"] = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    request.headers["Referer"] = "https://quote.eastmoney.com/"
+    return _original_send(self, request, *args, **kwargs)
+
+
+requests.Session.send = _patched_send
+
 from datetime import date as date_cls
 from datetime import datetime
 from typing import Optional, List
