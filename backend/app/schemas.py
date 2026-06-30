@@ -79,6 +79,7 @@ class SyncStatusResponse(BaseModel):
     etfs: list[SyncETFStatus]
     in_progress: list[ProgressInfo] | None = None
     is_running: bool = False
+    is_cancelled: bool = False
 
 
 class SyncTriggerResult(SyncStatusResponse):
@@ -88,3 +89,7 @@ class SyncTriggerResult(SyncStatusResponse):
     run_at: datetime
     from_date: date
     to_date: date
+
+
+class CancelResult(BaseModel):
+    cancelled: bool
