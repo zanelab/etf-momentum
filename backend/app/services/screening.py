@@ -1,4 +1,4 @@
-from typing import Optional, List
+from __future__ import annotations
 """ETF screening service — migrated from main.py filter_etfs().
 
 Behavior is preserved verbatim: dual-MA filter, momentum scoring with weighted
@@ -6,7 +6,6 @@ log-linear regression, industry diversification selection. The original JoinQuan
 APIs (`attribute_history`, `get_current_data`, etc.) are replaced by explicit
 parameters and a `MarketDataSource` injection so the function is pure and testable.
 """
-from __future__ import annotations
 
 import math
 from dataclasses import dataclass

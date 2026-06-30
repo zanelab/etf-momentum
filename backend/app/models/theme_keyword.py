@@ -1,6 +1,5 @@
-from typing import Optional, List
-"""Theme keyword dictionary entry."""
 from __future__ import annotations
+"""Theme keyword dictionary entry."""
 
 from sqlmodel import Field, SQLModel
 
