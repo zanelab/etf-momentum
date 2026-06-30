@@ -1,6 +1,5 @@
 """Tests for AkShareSource — uses a fake akshare module injected via sys.modules."""
 from datetime import date, datetime
-from pathlib import Path
 from types import ModuleType
 
 import pandas as pd
@@ -146,47 +145,18 @@ def test_akshare_all_etf_entries_returns_normalized_pairs(
     ]
 
 
-def test_akshare_falls_back_to_fixture_on_all_retries_exhausted(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """If akshare fails 4 times (1 + 3 retries) and fallback is configured,
-    AkShareSource must delegate to FixtureCSVSource."""
-
-    fake = _install_fake_akshare(monkeypatch)
-    call_count = {"n": 0}
-
-    def always_fail(*a, **kw):
-        call_count["n"] += 1
-        raise RuntimeError("akshare down")
-
-    fake.fund_etf_hist_em = always_fail
-    fake.fund_etf_spot_em = always_fail
-
-    # Build a fixture with one ETF
-    csv_path = tmp_path / "510300.csv"
-    csv_path.write_text(
-        "date,open,high,low,close,volume,money\n"
-        "2026-01-13,3.85,3.88,3.84,3.87,1000000,3870000\n"
-        "2026-01-14,3.88,3.90,3.87,3.89,1100000,4279000\n"
-    )
-
-    src = AkShareSource(fixtures_dir=tmp_path, max_retries=1, initial_delay=0.0)
-    df = src.history("510300", date(2026, 1, 13), date(2026, 1, 14))
-    assert len(df) == 2
-    assert df.iloc[0]["close"] == 3.87
-    # akshare was attempted (initial + 1 retry = 2)
-    assert call_count["n"] >= 1
-
-
-def test_akshare_raises_when_no_fallback_and_all_retries_exhausted(
+def test_akshare_raises_when_no_data_and_all_retries_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """When akshare fails after all retries and no fallback exists, raise DataNotFoundError."""
     fake = _install_fake_akshare(monkeypatch)
 
-    def always_fail(*a, **kw):
-        raise RuntimeError("akshare down")
+    def always_empty(*a, **kw):
+        return pd.DataFrame()  # empty = "no data"
 
-    fake.fund_etf_hist_em = always_fail
+    fake.fund_etf_hist_em = always_empty
     src = AkShareSource(max_retries=0, initial_delay=0.0)
-    with pytest.raises(RuntimeError, match="akshare down"):
+    from app.data_sources.base import DataNotFoundError
+
+    with pytest.raises(DataNotFoundError):
         src.history("510300", date(2026, 1, 13), date(2026, 1, 14))

@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Literal
 
 from app.data_sources.base import DataNotFoundError, MarketDataSource
-from app.services.portfolio_mock import Holding
+from app.models.portfolio import Portfolio
 from app.services.types import StrategyParams
 
 SignalType = Literal["BUY", "SELL"]
@@ -39,7 +39,7 @@ def _round_lot(shares: float) -> int:
 def generate_signals(
     *,
     targets: list[str],
-    holdings: list[Holding],
+    holdings: list[Portfolio],
     total_value: float,
     as_of: datetime,
     market: MarketDataSource,

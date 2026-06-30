@@ -13,6 +13,7 @@ from app import db as db_module
 from app.api.backtest import router as backtest_router
 from app.api.configs import router as configs_router
 from app.api.market import router as market_router
+from app.api.portfolio import router as portfolio_router
 from app.api.screening import router as screening_router
 from app.api.sync import router as sync_router
 from app.data_sources import make_source
@@ -100,3 +101,4 @@ app.include_router(screening_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api/backtest")
 app.include_router(market_router, prefix="/api/market")
 app.include_router(sync_router, prefix="/api")
+app.include_router(portfolio_router, prefix="/api/portfolio")

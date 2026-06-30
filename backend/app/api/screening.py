@@ -1,8 +1,7 @@
 """Screening, portfolio, and signals endpoints."""
 from __future__ import annotations
 
-from datetime import date as date_type
-from pathlib import Path
+from datetime import date as date_type, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -10,7 +9,7 @@ from pydantic import BaseModel
 
 from app.data_sources import make_source
 from app.data_sources.base import DataNotFoundError, MarketDataSource
-from app.services.portfolio_mock import get_mock_portfolio
+from app.services.portfolio import get_all_holdings
 from app.services.screening import filter_etfs, filter_etfs_detailed
 from app.services.signals import generate_signals
 from app.services.today import (
@@ -18,12 +17,9 @@ from app.services.today import (
     load_static_pool,
     load_strategy_params,
     load_themes,
-    resolve_today,
     select_kwargs_for_params,
 )
 from app.services.types import StrategyParams
-
-FIXTURES_DIR = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
 router = APIRouter(tags=["screening"])
 
@@ -59,7 +55,7 @@ class ScreeningTodayResponse(BaseModel):
 
 @router.get("/screening/today", response_model=ScreeningTodayResponse)
 def screening_today(source: Optional[str] = Query(None, description="Data source override")) -> ScreeningTodayResponse:
-    as_of = resolve_today(FIXTURES_DIR)
+    as_of = datetime.now()
     params = _params_for_today()
     static_pool = load_static_pool()
     themes = load_themes()
@@ -91,6 +87,7 @@ def screening_today(source: Optional[str] = Query(None, description="Data source
 
 class PortfolioHoldingOut(BaseModel):
     code: str
+    name: str
     shares: int
     cost_price: float
     current_price: float
@@ -110,9 +107,9 @@ class PortfolioResponse(BaseModel):
 
 @router.get("/portfolio", response_model=PortfolioResponse)
 def portfolio(source: Optional[str] = Query(None, description="Data source override")) -> PortfolioResponse:
-    as_of = resolve_today(FIXTURES_DIR)
+    as_of = datetime.now()
     market = _market(source)
-    holdings = get_mock_portfolio(as_of)
+    holdings = get_all_holdings()
     rows: list[PortfolioHoldingOut] = []
     total_market_value = 0.0
     total_cost = 0.0
@@ -128,6 +125,7 @@ def portfolio(source: Optional[str] = Query(None, description="Data source overr
         rows.append(
             PortfolioHoldingOut(
                 code=h.code,
+                name=h.name,
                 shares=h.shares,
                 cost_price=h.cost_price,
                 current_price=last_price,
@@ -168,7 +166,7 @@ class SignalsResponse(BaseModel):
 
 @router.get("/signals/today", response_model=SignalsResponse)
 def signals_today(source: Optional[str] = Query(None, description="Data source override")) -> SignalsResponse:
-    as_of = resolve_today(FIXTURES_DIR)
+    as_of = datetime.now()
     params = _params_for_today()
     market = _market(source)
 
@@ -186,7 +184,7 @@ def signals_today(source: Optional[str] = Query(None, description="Data source o
     )
 
     # Portfolio + total value
-    holdings = get_mock_portfolio(as_of)
+    holdings = get_all_holdings()
     total_market_value = 0.0
     total_cost = 0.0
     for h in holdings:

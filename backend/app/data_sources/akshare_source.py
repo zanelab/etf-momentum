@@ -5,14 +5,12 @@ rest of the app can be loaded even when akshare is not installed.
 """
 from datetime import date as date_cls
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
 from app.data_sources.base import DataNotFoundError, FieldName, MarketDataSource
 from app.data_sources.codes import normalize_etf_code
-from app.data_sources.fixture import FixtureCSVSource
 from app.data_sources.retry import retry_with_backoff
 
 # akshare's `fund_etf_hist_em` returns these Chinese column names; we rename
@@ -36,33 +34,26 @@ def _import_akshare():
         import akshare  # type: ignore
     except ImportError as e:
         raise ImportError(
-            "akshare is not installed. Run `pip install -r backend/requirements-realtime.txt`."
+            "akshare is not installed. Run `pip install -r backend/requirements.txt`."
         ) from e
     return akshare
 
 
 class AkShareSource(MarketDataSource):
-    """Fetches A-share ETF OHLCV via akshare.
-
-    If `fixtures_dir` is provided, all akshare calls fall back to
-    FixtureCSVSource after retries are exhausted.
-    """
+    """Fetches A-share ETF OHLCV via akshare with retry logic."""
 
     def __init__(
         self,
-        fixtures_dir: Optional[Path] = None,
         max_retries: int = 3,
         backoff_factor: float = 2.0,
         initial_delay: float = 1.0,
     ) -> None:
-        # Validate import eagerly so callers fail fast
-        _import_akshare()
-        self._fallback = FixtureCSVSource(fixtures_dir) if fixtures_dir else None
+        _import_akshare()  # Fail fast if akshare is not installed
         self._max_retries = max_retries
         self._backoff_factor = backoff_factor
         self._initial_delay = initial_delay
 
-    def _call(self, fn) -> "object":
+    def _call(self, fn):
         return retry_with_backoff(
             fn,
             max_retries=self._max_retries,
@@ -72,7 +63,6 @@ class AkShareSource(MarketDataSource):
 
     def _fetch_history_raw(self, code: str, start: date_cls, end: date_cls) -> pd.DataFrame:
         akshare = _import_akshare()
-        # akshare expects "%Y%m%d" string format for start/end
         start_s = start.strftime("%Y%m%d")
         end_s = end.strftime("%Y%m%d")
         df = akshare.fund_etf_hist_em(
@@ -89,15 +79,8 @@ class AkShareSource(MarketDataSource):
         end: date_cls,
         fields: Optional[list[FieldName]] = None,
     ) -> pd.DataFrame:
-        try:
-            df = self._call(lambda: self._fetch_history_raw(code, start, end))
-        except Exception:
-            if self._fallback is not None:
-                return self._fallback.history(code, start, end, fields=fields)
-            raise
+        df = self._call(lambda: self._fetch_history_raw(code, start, end))
         if df.empty:
-            if self._fallback is not None:
-                return self._fallback.history(code, start, end, fields=fields)
             raise DataNotFoundError(f"No akshare data for {code} in [{start}, {end}]")
         df = df.set_index("date").sort_index()
         if fields is not None:
@@ -106,25 +89,14 @@ class AkShareSource(MarketDataSource):
         return df
 
     def snapshot(self, code: str, as_of: datetime) -> dict:
-        # We need history to compute snapshot; fetch a small window and take last.
         as_of_date = as_of.date() if isinstance(as_of, datetime) else as_of
-        # Pull the last 5 trading days ending at as_of
-        start = as_of_date  # 5-day window is enough
-        try:
-            df = self._call(lambda: self._fetch_history_raw(code, start, as_of_date))
-        except Exception:
-            if self._fallback is not None:
-                return self._fallback.snapshot(code, as_of)
-            raise
+        start = as_of_date
+        df = self._call(lambda: self._fetch_history_raw(code, start, as_of_date))
         if df.empty:
-            if self._fallback is not None:
-                return self._fallback.snapshot(code, as_of)
             raise DataNotFoundError(f"No snapshot for {code} at or before {as_of}")
         df = df.set_index(pd.to_datetime(df["date"])).sort_index()
         valid = df.loc[df.index <= pd.Timestamp(as_of_date)]
         if valid.empty:
-            if self._fallback is not None:
-                return self._fallback.snapshot(code, as_of)
             raise DataNotFoundError(f"No snapshot for {code} at or before {as_of}")
         row = valid.iloc[-1]
         return {
@@ -140,38 +112,20 @@ class AkShareSource(MarketDataSource):
         akshare = _import_akshare()
         df = self._call(lambda: akshare.fund_etf_spot_em())
         if df is None or df.empty:
-            if self._fallback is not None:
-                return self._fallback.all_etf_entries(as_of)
             return []
         if _NAME_COL_CODE not in df.columns:
-            if self._fallback is not None:
-                return self._fallback.all_etf_entries(as_of)
             return []
         raw_codes = df[_NAME_COL_CODE].astype(str)
         if _NAME_COL_NAME in df.columns:
             names = df[_NAME_COL_NAME].astype(str)
         else:
-            names = raw_codes  # fallback if name column missing
-        # Normalize akshare's bare 6-digit codes to canonical form so callers
-        # can dedupe against the static pool without format mismatch.
+            names = raw_codes
         codes: list[str] = []
-        for raw in raw_codes.tolist():
+        valid_names: list[str] = []
+        for raw, n in zip(raw_codes.tolist(), names.tolist()):
             try:
                 codes.append(normalize_etf_code(raw))
+                valid_names.append(n)
             except ValueError:
-                # Skip codes we cannot normalize (defensive: akshare may surface
-                # non-standard codes); their names are dropped with them.
                 continue
-        valid_names = [n for raw, n in zip(raw_codes.tolist(), names.tolist())  # noqa: B905
-                       if _can_normalize(raw)]
-        return list(zip(codes, valid_names))  # noqa: B905
-
-
-def _can_normalize(code: str) -> bool:
-    """Return True if `code` can be normalized; False otherwise (used to
-    parallel-filter names when normalization drops a code)."""
-    try:
-        normalize_etf_code(code)
-        return True
-    except ValueError:
-        return False
+        return list(zip(codes, valid_names))
