@@ -1,5 +1,6 @@
+from typing import Optional, List
+
 """Strategy parameter (single key, JSON-encoded value)."""
-from __future__ import annotations
 
 from datetime import datetime
 

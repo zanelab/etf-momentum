@@ -1,4 +1,5 @@
-from __future__ import annotations
+from typing import Optional, List
+
 """Static ETF pool entry."""
 
 from datetime import datetime
