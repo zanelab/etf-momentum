@@ -69,6 +69,7 @@ def sync_historical_for_pool(codes: list[str], from_date: date, to_date: date) -
     clearing it (see `sync.api.trigger_sync`).
     """
     SYNC_DIR.mkdir(parents=True, exist_ok=True)
+    tracker.reset_cancel()  # clear any stale cancel flag from a previous run
     total_days = (to_date - from_date).days + 1
     overall_total = total_days * len(codes)
     overall_index = 0
@@ -109,6 +110,18 @@ def sync_historical_for_pool(codes: list[str], from_date: date, to_date: date) -
                 overall_index=overall_index, overall_total=overall_total,
                 started_at=started_at,
             ))
+
+            # After every (code, date) step, check if user requested cancel.
+            # If yes, break inner loop. The outer for/else/continue/break
+            # pattern then breaks the outer loop as well. The summary JSON
+            # is still written below with the partial `rows`. We deliberately
+            # do NOT call tracker.clear() so the frontend status poll can
+            # still observe the last progress + cancel flag.
+            if tracker.is_cancel_requested():
+                break
+        else:
+            continue
+        break
 
     payload = {
         "date": to_date.isoformat(),

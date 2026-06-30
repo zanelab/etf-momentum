@@ -163,3 +163,61 @@ def test_sync_today_with_explicit_target_date_still_works(tmp_path, monkeypatch)
     out = sync_today(target_date=date(2024, 4, 19))
     assert out.exists()
     assert "2024-04-19" in out.name
+
+
+# ---------------------------------------------------------------------------
+# Task 2: cancel flag wiring in sync_historical_for_pool
+# ---------------------------------------------------------------------------
+
+
+def test_sync_historical_for_pool_respects_cancel(tmp_path, monkeypatch) -> None:
+    """When cancel is requested mid-loop, sync stops and writes partial summary."""
+    from app.services import daily_sync
+    from app.services.sync_progress import tracker
+    monkeypatch.setattr(daily_sync, "SYNC_DIR", tmp_path)
+    tracker.clear()
+
+    # Simulate cancel being requested after the 4th tracker.set() call.
+    original_set = tracker.set
+    call_count = {"n": 0}
+
+    def fake_set(code, info):
+        call_count["n"] += 1
+        if call_count["n"] == 4:
+            tracker.cancel()
+        original_set(code, info)
+
+    monkeypatch.setattr(tracker, "set", fake_set)
+
+    codes = ["159915.XSHE", "510300.XSHG"]
+    out = sync_historical_for_pool(
+        codes=codes, from_date=date(2024, 4, 19), to_date=date(2024, 4, 21),
+    )
+
+    # summary still written
+    assert out.exists()
+    payload = json.loads(out.read_text())
+    # partial rows (4 completed before cancel)
+    assert len(payload["rows"]) == 4
+    # tracker not cleared (so frontend status poll sees cancel state)
+    assert tracker.is_active() is True
+    assert tracker.is_cancel_requested() is True
+    tracker.clear()
+
+
+def test_sync_historical_for_pool_resets_cancel_at_start(tmp_path, monkeypatch) -> None:
+    """If cancel flag was set from a previous run, sync resets it at start."""
+    from app.services import daily_sync
+    from app.services.sync_progress import tracker
+    monkeypatch.setattr(daily_sync, "SYNC_DIR", tmp_path)
+    tracker.clear()
+    tracker.cancel()  # simulate stale flag
+    assert tracker.is_cancel_requested() is True
+
+    # Run a 1-code 1-day sync.
+    sync_historical_for_pool(
+        codes=["159915.XSHE"], from_date=date(2024, 4, 19), to_date=date(2024, 4, 19),
+    )
+    # After sync starts, cancel flag should be reset.
+    assert tracker.is_cancel_requested() is False
+    tracker.clear()
