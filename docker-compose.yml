@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    profiles: ["prod"]
     ports:
       - "8000:8000"
     volumes:
@@ -21,10 +22,37 @@ services:
       timeout: 10s
       retries: 3
 
+  backend-dev:
+    image: python:3.12-slim
+    profiles: ["dev"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - etf-data:/app/data
+    working_dir: /app
+    command: >
+      bash -c "
+        pip install uv &&
+        uv pip install --system -r requirements.txt &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    environment:
+      - ETF_DATA_SOURCE=akshare
+      - DATABASE_URL=sqlite:///./data/etf.db
+    networks:
+      - etf-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    profiles: ["prod"]
     ports:
       - "3000:3000"
     environment:
@@ -35,6 +63,22 @@ services:
     networks:
       - etf-net
     restart: unless-stopped
+
+  frontend-dev:
+    image: node:20-alpine
+    profiles: ["dev"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: >
+      sh -c "npm install && npm run dev"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    networks:
+      - etf-net
 
 volumes:
   etf-data:
