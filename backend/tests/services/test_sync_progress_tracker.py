@@ -42,3 +42,30 @@ def test_tracker_clear_resets():
 
 def test_module_singleton_exists():
     assert isinstance(tracker, SyncProgressTracker)
+
+def test_tracker_cancel_starts_false():
+    t = SyncProgressTracker()
+    assert t.is_cancel_requested() is False
+
+def test_tracker_cancel_sets_flag():
+    t = SyncProgressTracker()
+    t.cancel()
+    assert t.is_cancel_requested() is True
+
+def test_tracker_reset_cancel_clears_flag():
+    t = SyncProgressTracker()
+    t.cancel()
+    t.reset_cancel()
+    assert t.is_cancel_requested() is False
+
+def test_tracker_clear_also_resets_cancel():
+    """clear() 是 sync 完成时的清理点，应同时清除 cancel flag。"""
+    t = SyncProgressTracker()
+    info = ProgressInfo(code="510300", from_date=date(2024,1,1), to_date=date(2024,1,31),
+                        current_date=date(2024,1,1), total_days=31, completed_days=1,
+                        overall_index=1, overall_total=31, started_at=datetime.now(timezone.utc))
+    t.set("510300", info)
+    t.cancel()
+    t.clear()
+    assert t.is_cancel_requested() is False
+    assert t.is_active() is False
