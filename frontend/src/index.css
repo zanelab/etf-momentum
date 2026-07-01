@@ -2,26 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+   etf-momentum UI Token
+   - 来自 spec/openspec/changes/akshare-real-data/design.md § 1
+   - 场景：admin-dashboard（后端管理后台）
+   - 默认调色板：2B 灰蓝（b2b-slate），承诺度 Restrained
+   - 工程规范：4pt 网格 + OKLCH 调色 + 6 档圆角阶梯 + prefers-reduced-motion
+   ========================================================================= */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    /* ---------- OKLCH 调色板（2B 灰蓝 + Restrained 状态色）---------- */
+    --primary: 55% 0.10 240;          /* 主色：中性蓝灰，CTA / 链接 */
+    --primary-foreground: 99% 0.003 240;
+    --secondary: 96% 0.005 240;
+    --secondary-foreground: 20% 0.01 240;
+    --muted: 96% 0.005 240;
+    --muted-foreground: 50% 0.01 240;
+    --accent: 96% 0.005 240;
+    --accent-foreground: 20% 0.01 240;
+    --destructive: 55% 0.20 25;       /* 危险：红 */
+    --destructive-foreground: 99% 0.003 240;
+    --success: 60% 0.15 145;          /* 成功：绿 */
+    --warning: 75% 0.15 80;          /* 警告：琥珀 */
+    --info: 65% 0.15 230;             /* 信息：天蓝 */
+
+    /* ---------- 结构色 ---------- */
+    --background: 99% 0.003 240;      /* 主背景（中性白） */
+    --foreground: 20% 0.01 240;       /* 主文本 */
+    --card: 99% 0.003 240;
+    --card-foreground: 20% 0.01 240;
+    --popover: 99% 0.003 240;
+    --popover-foreground: 20% 0.01 240;
+    --border: 90% 0.005 240;          /* 分隔线 */
+    --input: 90% 0.005 240;
+    --ring: 55% 0.10 240;             /* 焦点环：同主色 */
+  }
+
+  .dark {
+    --background: 18% 0.01 240;
+    --foreground: 98% 0.003 240;
+    --card: 22% 0.01 240;
+    --card-foreground: 98% 0.003 240;
+    --popover: 22% 0.01 240;
+    --popover-foreground: 98% 0.003 240;
+    --primary: 70% 0.12 240;
+    --primary-foreground: 18% 0.01 240;
+    --secondary: 28% 0.01 240;
+    --secondary-foreground: 98% 0.003 240;
+    --muted: 28% 0.01 240;
+    --muted-foreground: 65% 0.01 240;
+    --accent: 28% 0.01 240;
+    --accent-foreground: 98% 0.003 240;
+    --destructive: 60% 0.22 25;
+    --destructive-foreground: 98% 0.003 240;
+    --success: 70% 0.16 145;
+    --warning: 80% 0.16 80;
+    --info: 70% 0.16 230;
+    --border: 30% 0.01 240;
+    --input: 30% 0.01 240;
+    --ring: 70% 0.12 240;
   }
 }
 
@@ -34,6 +74,37 @@
   }
 }
 
+/* =========================================================================
+   全局可见焦点环（a11y · WCAG 2.4.7）
+   所有键盘可达元素（button/input/select/textarea/a）加 2px 实色焦点环
+   满足 ui-design 集成层 § 5.6 第 3 项要求
+   ========================================================================= */
+@layer base {
+  :focus-visible {
+    outline: 2px solid oklch(var(--ring));
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+}
+
+/* =========================================================================
+   可访问性：减弱动效（prefers-reduced-motion）
+   满足 ui-design 集成层 § 5.6 第 5 项要求
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================================
+   打印样式（保留）
+   ========================================================================= */
 @media print {
   header nav,
   aside,

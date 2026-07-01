@@ -76,3 +76,55 @@
 
 - 如果自动安装失败，请告知用户失败原因，并建议切换到手动安装。
 - 如果用户拒绝安装，则停止所有开发工作，并说明开发必须依赖 `speccoding` 技能。
+
+---
+
+## 5. UI 设计维度强制规则
+
+> 本项目涉及前端界面（React + Vite + Tailwind）。所有涉及 UI 的变更必须在 **spec 阶段** 落地设计维度，写入 `openspec/changes/<name>/design.md`（与 `spec.md` 并列）。
+
+### 5.1 设计维度集成层位置
+
+- **集成层**：`~/.hermes/skills/speccoding/ui-design/`（位于 speccoding skill 目录下）
+- **来源**：吸收自 [frontend-ui-foundry](https://github.com/jiushiwon/wg-skills/tree/main/frontend-ui-foundry) 的设计法则
+- **触发**：对话中出现"做 UI / 调色板 / 字体 / 圆角 / 动效 / AI slop / spec/design.md"等关键词，agent 自动加载该集成层
+- **模板**：`~/.hermes/skills/speccoding/ui-design/templates/01-spec-design-template.md`
+
+### 5.2 5 个硬约束（违反必须修正）
+
+| # | 约束 | 详见 |
+|---|------|------|
+| 1 | **场景识别**：8 场景（mobile-responsive/pc-corporate/admin-dashboard/landing-marketing/docs-site/fintech-app/mobile-native/threejs-3d）必走"4 问"定位 | `references/01-ui-scenarios.md` |
+| 2 | **调色承诺度**：Restrained / Committed / Full / Drenched 四档必填一档 | `references/02-color-typography-tokens.md` |
+| 3 | **反 AI Slop 三阶反思维**：提案阶段必跑（品类→调色板、品类+反参考→美学，猜得出=反射） | `references/03-anti-ai-slop.md` § 三 |
+| 4 | **尺寸系统**：间距必落 4pt 网格；圆角必落 8 档阶梯；动效仅 transform/opacity | `references/04-motion-spacing-radius.md` |
+| 5 | **17 项自检清单**：executing 入口必跑，未过则阻止进入代码实现 | `references/03-anti-ai-slop.md` § 四 |
+
+### 5.3 阶段边界
+
+- **proposal 阶段**：必加 "UI 场景" 节（含场景名、调色板名、承诺度、技术栈）
+- **brainstorming 阶段**：必跑"三阶反思维"，未通过回到 proposal
+- **spec 阶段**：必写 `openspec/changes/<name>/design.md`（用 5.1 的模板）
+- **amend 阶段**：UI 变更必须改 spec/design.md，重新跑 17 项自检
+- **executing 入口**：必跑 17 项自检清单（截图存档到 commit message）；未过 = 阻止开始
+- **executing 出场（commit 前）**：再跑一遍 17 项自检，防止新增 slop
+
+### 5.4 触发关键词
+
+```
+UI 设计 / 页面设计 / 前端 / 设计稿
+调色板 / 颜色 / 字体 / 圆角 / 动效 / Token
+AI slop / 渐变文字 / 玻璃拟态 / Inter 字体 / 侧边色条 / hero-metric
+管理端设计 / 落地页设计 / 移动端界面
+Stripe 风格 / Linear 风格 / Vercel 风格 / Tailwind
+```
+
+只要对话包含上述任何一个词，agent 必须先 `skill_view(name='speccoding-ui-design')`（或读 `~/.hermes/skills/speccoding/ui-design/SKILL.md`）再行动。
+
+### 5.5 当前项目 UI 状况基线
+
+- **技术栈**：React 18 + Vite + Tailwind 3.4（HSL 主题，shadcn-style 默认）
+- **组件库**：lucide-react + 自主组件（无 shadcn / MUI / AntD）
+- **场景**：admin-dashboard（默认场景；移动端有响应式，但主战场是 PC 后台）
+- **最近体检**：见 `spec/ui-design-audit.md`（C 任务产出）
+- **Token 计划**：见 D 任务（4pt 网格 + OKLCH 调色板迁移）
